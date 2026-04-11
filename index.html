@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Catalog | Luxury Collection</title>
+    <meta name="description" content="Explore our exclusive collection of premium products with luxury design and unmatched quality.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header id="header" class="glass">
+        <div class="container nav">
+            <a href="#" class="logo">
+                <img src="assets/logo.png" alt="Brilho Joias" class="logo-img">
+            </a>
+            <ul class="nav-links">
+                <li><a href="#home">Inicio</a></li>
+                <li><a href="#catalog">Catálogo</a></li>
+                <li><a href="#about">Nosotros</a></li>
+                <li><a href="#contact">Contacto</a></li>
+            </ul>
+            <div class="header-actions" style="display: flex; gap: 1rem; align-items: center;">
+                <button id="cartBtn" class="btn glass" style="padding: 0.5rem 1rem; position: relative;">
+                    🛒 <span id="cartCount" style="background: var(--primary); color: var(--bg-darker); border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; position: absolute; top: -5px; right: -5px;">0</span>
+                </button>
+                <a href="#catalog" class="btn btn-primary">Ver Ahora</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Cart Sidebar -->
+    <div id="cartSidebar" class="glass cart-sidebar">
+        <div class="cart-header">
+            <h3>Tu Carrito</h3>
+            <button id="closeCart" class="btn" style="background: transparent; color: var(--text-main); font-size: 1.5rem;">&times;</button>
+        </div>
+        <div id="cartItems" class="cart-items">
+            <!-- Items injected by JS -->
+        </div>
+        <div class="cart-footer">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; font-weight: 700;">
+                <span>Total:</span>
+                <span id="cartTotal">$0</span>
+            </div>
+            <button id="checkoutBtn" class="btn btn-primary" style="width: 100%;">Finalizar Pedido</button>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="glass modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000; padding: 2.5rem; border-radius: 20px; width: 90%; max-width: 500px;">
+        <h2 style="margin-bottom: 1.5rem; text-align: center;">Tus Datos</h2>
+        <form id="checkoutForm">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">Nombre Completo</label>
+                <input type="text" id="custName" required class="glass" style="width: 100%; border: 1px solid var(--glass-border); padding: 0.8rem; color: #fff; border-radius: 10px; background: rgba(255,255,255,0.05);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">WhatsApp / Celular</label>
+                <input type="tel" id="custPhone" required class="glass" style="width: 100%; border: 1px solid var(--glass-border); padding: 0.8rem; color: #fff; border-radius: 10px; background: rgba(255,255,255,0.05);">
+            </div>
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">Dirección de Entrega</label>
+                <textarea id="custAddr" required class="glass" style="width: 100%; border: 1px solid var(--glass-border); padding: 0.8rem; color: #fff; border-radius: 10px; background: rgba(255,255,255,0.05); height: 80px;"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" id="cancelCheckout" class="btn" style="flex: 1; background: rgba(255,255,255,0.1); color: #fff; border: none;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="flex: 2;">Confirmar pedido</button>
+            </div>
+        </form>
+    </div>
+    <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2900;"></div>
+
+    <!-- Category Sidebar (Departments) -->
+    <aside id="categorySidebar" class="category-menu glass">
+        <h3>Departamentos</h3>
+        <ul id="deptList">
+            <li><a href="#" onclick="filterBy('all')">Todos</a></li>
+            <li class="has-submenu">
+                <a href="#" onclick="toggleSubmenu(event)">Joyería ▾</a>
+                <ul class="submenu">
+                    <li><a href="#" onclick="filterBy('Anillos')">Anillos</a></li>
+                    <li><a href="#" onclick="filterBy('Collares')">Collares</a></li>
+                    <li><a href="#" onclick="filterBy('Pulseras')">Pulseras</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#" onclick="toggleSubmenu(event)">Accesorios ▾</a>
+                <ul class="submenu">
+                    <li><a href="#" onclick="filterBy('Relojes')">Relojes</a></li>
+                    <li><a href="#" onclick="filterBy('Gafas')">Gafas</a></li>
+                    <li><a href="#" onclick="filterBy('Bolsos')">Bolsos</a></li>
+                </ul>
+            </li>
+        </ul>
+        <button id="adminLoginBtn" class="btn" style="margin-top: auto; background: rgba(255,255,255,0.05); color: var(--text-muted); font-size: 0.8rem; border: none;">Acceso Admin</button>
+    </aside>
+
+    <!-- Admin Panel Modal -->
+    <div id="adminPanel" class="glass modal" style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 4000; width: 90%; max-width: 800px; padding: 2rem; max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h2>Panel de Administración</h2>
+            <button id="closeAdmin" class="btn">&times;</button>
+        </div>
+        <form id="productForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 15px;">
+            <input type="text" id="pName" placeholder="Nombre del Producto" required class="glass-input">
+            <input type="text" id="pRef" placeholder="Referencia" required class="glass-input">
+            <input type="number" id="pPrice" placeholder="Precio ($)" required class="glass-input">
+            <input type="text" id="pDept" placeholder="Departamento (Ej: Joyería)" required class="glass-input">
+            <input type="text" id="pCategory" placeholder="Categoría (Ej: Anillos)" required class="glass-input">
+            <div style="grid-column: span 2;">
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">Imagen del Producto</label>
+                <input type="file" id="pFile" accept="image/*" class="glass-input">
+            </div>
+            <textarea id="pDesc" placeholder="Descripción" style="grid-column: span 2;" class="glass-input"></textarea>
+            <button type="submit" class="btn btn-primary" style="grid-column: span 2;">Guardar Producto</button>
+        </form>
+        <div id="adminProductGrid"></div>
+    </div>
+
+    <main class="main-content">
+        <section id="home" class="hero">
+            <div class="container text-center">
+                <h1>Elegancia Atemporal</h1>
+                <p>Descubre una selección curada de piezas exclusivas diseñadas para aquellos que buscan lo extraordinario en cada detalle.</p>
+                <div class="hero-btns">
+                    <a href="#catalog" class="btn btn-primary">Explorar Colección</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="catalog" class="catalog-section">
+            <div class="container">
+                <div class="section-title">
+                    <p class="product-tag">Novedades</p>
+                    <h2>Nuestro Catálogo</h2>
+                </div>
+
+                <div class="product-grid" id="productGrid">
+                    <!-- Products will be injected here by JS -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="glass" style="margin-top: 5rem; padding: 4rem 0;">
+        <div class="container">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 2rem;">
+                <div>
+                    <a href="#" class="logo">
+                        <img src="assets/logo.png" alt="Brilho Joias" class="logo-img">
+                    </a>
+                    <p style="color: var(--text-muted); max-width: 300px; margin-top: 1rem;">Excelencia y diseño en cada pieza. La referencia del lujo contemporáneo.</p>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Enlaces</h4>
+                    <ul style="list-style: none; color: var(--text-muted);">
+                        <li>Soporte</li>
+                        <li>Envíos</li>
+                        <li>Garantía</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Contacto</h4>
+                    <p style="color: var(--text-muted);">info@luxecollection.com</p>
+                    <p style="color: var(--text-muted);">+1 234 567 890</p>
+                </div>
+            </div>
+            <div style="border-top: 1px solid var(--glass-border); margin-top: 3rem; padding-top: 2rem; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
+                <p>&copy; 2026 LUXE Premium Catalog. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
