@@ -250,10 +250,16 @@ function updateCartUI() {
 
 // Utilities
 function formatPrice(p) {
-    return p ? parsePrice(p).toLocaleString() : '0';
+    if (!p) return '0';
+    const num = parsePrice(p);
+    // If it's a whole number, don't show .00 unless you want it. 
+    // Show 2 decimals if it's a real decimal.
+    return num % 1 === 0 ? num.toLocaleString() : num.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
 }
 function parsePrice(p) {
-    return parseFloat(String(p).replace(/[$\s,]/g, '')) || 0;
+    if (typeof p === 'number') return p;
+    // Replace comma with dot for calculation, remove other symbols
+    return parseFloat(String(p).replace('$', '').replace(/\s/g, '').replace(',', '.')) || 0;
 }
 
 function filterBy(cat, dept) {
