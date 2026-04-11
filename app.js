@@ -25,6 +25,10 @@ const adminPanel = document.getElementById('adminPanel');
 const productForm = document.getElementById('productForm');
 const closeAdmin = document.getElementById('closeAdmin');
 const adminLoginBtn = document.getElementById('adminLoginBtn');
+const loginModal = document.getElementById('loginModal');
+const adminPassInput = document.getElementById('adminPassInput');
+const confirmLogin = document.getElementById('confirmLogin');
+const cancelLogin = document.getElementById('cancelLogin');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,16 +50,20 @@ function setupEventListeners() {
         e.preventDefault();
         handleOrder();
     });
+    
     adminLoginBtn.addEventListener('click', loginAdmin);
     closeAdmin.addEventListener('click', () => toggleAdminPanel(false));
     productForm.addEventListener('submit', handleAddProduct);
+    
+    confirmLogin.addEventListener('click', handleLogin);
+    cancelLogin.addEventListener('click', () => toggleLoginModal(false));
     
     window.addEventListener('scroll', handleHeaderScroll);
 }
 
 // Data Handling
 async function loadProducts() {
-    productGrid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">Cargando catálogo real desde Google Sheets...</p>';
+    productGrid.innerHTML = '<div style="text-align:center; grid-column: 1/-1; padding: 3rem;"><p>Cargando catálogo premium...</p></div>';
     try {
         const response = await fetch(WEB_APP_URL);
         products = await response.json();
@@ -63,7 +71,7 @@ async function loadProducts() {
         renderSidebar();
     } catch (error) {
         console.error("Error loading products:", error);
-        productGrid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">Error al cargar productos. Verifica la conexión.</p>';
+        productGrid.innerHTML = '<div style="text-align:center; grid-column: 1/-1; padding: 3rem;"><p>Error al cargar productos. Verifica que la aplicación de Google sea pública ("Anyone").</p></div>';
     }
 }
 
@@ -75,18 +83,18 @@ async function handleAddProduct(e) {
 
     const file = document.getElementById('pFile').files[0];
     if (!file) {
-        alert("Por favor selecciona una imagen");
+        alert("Selecciona una imagen");
         submitBtn.disabled = false;
-        submitBtn.innerText = "Guardar Producto";
+        submitBtn.innerText = "Guardar";
         return;
     }
 
     const reader = new FileReader();
     reader.onloadend = async () => {
-        const newProduct = {
+        const item = {
             name: document.getElementById('pName').value,
             ref: document.getElementById('pRef').value,
-            price: `$${document.getElementById('pPrice').value}`,
+            price: document.getElementById('pPrice').value,
             department: document.getElementById('pDept').value,
             category: document.getElementById('pCategory').value,
             image: reader.result,
@@ -96,40 +104,55 @@ async function handleAddProduct(e) {
         try {
             await fetch(WEB_APP_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Important for GAS
-                body: JSON.stringify(newProduct)
+                mode: 'no-cors',
+                body: JSON.stringify(item)
             });
-            alert("Producto guardado exitosamente en Google Sheets");
+            alert("Producto guardado exitosamente");
             productForm.reset();
+            loadProducts();
             toggleAdminPanel(false);
-            loadProducts(); // Refresh
         } catch (error) {
-            console.error("Error saving product:", error);
-            alert("Error al guardar. Inténtalo de nuevo.");
+            alert("Error al guardar");
         } finally {
             submitBtn.disabled = false;
-            submitBtn.innerText = "Guardar Producto";
+            submitBtn.innerText = "Guardar";
         }
     };
     reader.readAsDataURL(file);
 }
 
-// UI Rendering
+async function deleteProduct(id) {
+    if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+    
+    try {
+        await fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: 'DELETE', id: id })
+        });
+        alert("Solicitud de eliminación enviada. Los cambios pueden tardar unos segundos en reflejarse.");
+        loadProducts();
+    } catch (error) {
+        alert("Error al eliminar");
+    }
+}
+
+// UI Functions
 function renderProducts(items) {
-    if (items.length === 0) {
-        productGrid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">No hay productos disponibles aún.</p>';
+    if (!items || items.length === 0) {
+        productGrid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">No hay productos registrados.</p>';
         return;
     }
-    productGrid.innerHTML = items.map(product => `
+    productGrid.innerHTML = items.map(p => `
         <div class="product-card glass">
-            <img src="${product.image}" alt="${product.name}" class="product-image">
+            <img src="${p.image}" alt="${p.name}" class="product-image">
             <div class="product-info">
-                <span class="product-tag">${product.department} | ${product.category}</span>
-                <p style="font-size: 0.7rem; color: var(--text-muted);">Ref: ${product.ref || 'N/A'}</p>
-                <h3 class="product-name">${product.name}</h3>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">${product.desc || ''}</p>
-                <p class="product-price">${product.price}</p>
-                <button onclick="addToCart('${product.id}')" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Agregar al carrito</button>
+                <span class="product-tag">${p.department || 'General'} | ${p.category || 'Otros'}</span>
+                <p style="font-size: 0.7rem; color: var(--text-muted);">Ref: ${p.ref || 'N/A'}</p>
+                <h3 class="product-name">${p.name}</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">${p.desc || ''}</p>
+                <p class="product-price">$${formatPrice(p.price)}</p>
+                <button onclick="addToCart('${p.id}')" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Agregar al carrito</button>
             </div>
         </div>
     `).join('');
@@ -137,11 +160,13 @@ function renderProducts(items) {
 
 function renderSidebar() {
     const deptList = document.getElementById('deptList');
-    const departments = [...new Set(products.map(p => p.department))];
+    if (!deptList) return;
     
+    const departments = [...new Set(products.map(p => p.department).filter(Boolean))];
     let html = `<li><a href="#" onclick="filterBy('all')">Todos</a></li>`;
+    
     departments.forEach(dept => {
-        const categories = [...new Set(products.filter(p => p.department === dept).map(p => p.category))];
+        const categories = [...new Set(products.filter(p => p.department === dept).map(p => p.category).filter(Boolean))];
         html += `
             <li class="has-submenu">
                 <a href="#" onclick="toggleSubmenu(event)">${dept} ▾</a>
@@ -154,10 +179,25 @@ function renderSidebar() {
     deptList.innerHTML = html;
 }
 
-// Logic Functions
-function addToCart(productId) {
-    const product = products.find(p => String(p.id) === String(productId));
-    const existing = cart.find(p => String(p.id) === String(productId));
+function renderAdminProducts() {
+    const grid = document.getElementById('adminProductGrid');
+    grid.innerHTML = products.map(p => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--glass-border);">
+            <div>
+                <p style="font-weight: bold; margin: 0;">${p.name}</p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">${p.department} > ${p.category}</p>
+            </div>
+            <button onclick="deleteProduct('${p.id}')" style="background: none; border: 1px solid #ff4444; color: #ff4444; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Eliminar</button>
+        </div>
+    `).join('');
+}
+
+// Cart Logic
+function addToCart(pid) {
+    const product = products.find(p => String(p.id) === String(pid));
+    if (!product) return;
+
+    const existing = cart.find(c => String(c.id) === String(pid));
     if (existing) {
         existing.quantity += 1;
     } else {
@@ -167,64 +207,65 @@ function addToCart(productId) {
     toggleCart(true);
 }
 
-function changeQuantity(productId, delta) {
-    const item = cart.find(p => String(p.id) === String(productId));
-    if (item) {
-        item.quantity += delta;
-        if (item.quantity <= 0) {
-            cart = cart.filter(p => String(p.id) !== String(productId));
-        }
-        updateCartUI();
+function changeQuantity(pid, delta) {
+    const item = cart.find(c => String(c.id) === String(pid));
+    if (!item) return;
+    item.quantity += delta;
+    if (item.quantity <= 0) {
+        cart = cart.filter(c => String(c.id) !== String(pid));
     }
+    updateCartUI();
 }
 
 function updateCartUI() {
-    cartCount.innerText = cart.reduce((sum, item) => sum + item.quantity, 0);
-    cartItems.innerHTML = cart.map((item) => `
+    cartCount.innerText = cart.reduce((s, i) => s + i.quantity, 0);
+    cartItems.innerHTML = cart.map(i => `
         <div class="cart-item">
-            <img src="${item.image}" alt="${item.name}">
+            <img src="${i.image}">
             <div class="cart-item-info">
-                <h4>${item.name}</h4>
-                <p>${item.price}</p>
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
-                    <button onclick="changeQuantity('${item.id}', -1)" class="btn" style="padding: 2px 8px; background: rgba(255,255,255,0.1); border:none; color:white;">-</button>
-                    <span style="font-size: 0.9rem;">${item.quantity}</span>
-                    <button onclick="changeQuantity('${item.id}', 1)" class="btn" style="padding: 2px 8px; background: rgba(255,255,255,0.1); border:none; color:white;">+</button>
+                <h4>${i.name}</h4>
+                <p>$${formatPrice(i.price)}</p>
+                <div style="display:flex; align-items:center; gap: 0.5rem; margin-top:0.3rem;">
+                    <button onclick="changeQuantity('${i.id}', -1)" style="background:rgba(255,255,255,0.1); border:none; color:white; width:24px;">-</button>
+                    <span>${i.quantity}</span>
+                    <button onclick="changeQuantity('${i.id}', 1)" style="background:rgba(255,255,255,0.1); border:none; color:white; width:24px;">+</button>
                 </div>
             </div>
-            <button onclick="changeQuantity('${item.id}', -${item.quantity})" style="background:transparent; border:none; color: #ff4444; cursor:pointer; margin-left:auto;">&times;</button>
+            <button onclick="changeQuantity('${i.id}', -${i.quantity})" style="background:none; border:none; color:#ff4444; cursor:pointer;">&times;</button>
         </div>
     `).join('');
 
-    const total = cart.reduce((sum, item) => {
-        const price = parseFloat(String(item.price).replace('$', '').replace(',', ''));
-        return sum + (price * item.quantity);
-    }, 0);
+    const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
     cartTotal.innerText = `$${total.toLocaleString()}`;
 }
 
-function filterBy(category, dept) {
-    if (category === 'all') {
-        renderProducts(products);
-    } else {
-        const filtered = products.filter(p => p.category === category && p.department === dept);
-        renderProducts(filtered);
-    }
+// Utilities
+function formatPrice(p) {
+    return p ? parsePrice(p).toLocaleString() : '0';
+}
+function parsePrice(p) {
+    return parseFloat(String(p).replace(/[$\s,]/g, '')) || 0;
 }
 
-function toggleCart(force) {
-    cartSidebar.classList.toggle('active', force);
+function filterBy(cat, dept) {
+    if (cat === 'all') renderProducts(products);
+    else renderProducts(products.filter(p => p.category === cat && p.department === dept));
 }
 
-function toggleModal(show) {
-    checkoutModal.style.display = show ? 'block' : 'none';
-    modalOverlay.style.display = show ? 'block' : 'none';
+function toggleCart(s) { cartSidebar.classList.toggle('active', s); }
+function toggleModal(s) { 
+    checkoutModal.style.display = s ? 'block' : 'none';
+    modalOverlay.style.display = s ? 'block' : 'none';
 }
-
-function toggleAdminPanel(show) {
-    adminPanel.style.display = show ? 'block' : 'none';
-    modalOverlay.style.display = show ? 'block' : 'none';
-    if (show) renderAdminProducts();
+function toggleAdminPanel(s) {
+    adminPanel.style.display = s ? 'block' : 'none';
+    modalOverlay.style.display = s ? 'block' : 'none';
+    if (s) renderAdminProducts();
+}
+function toggleLoginModal(s) {
+    loginModal.style.display = s ? 'block' : 'none';
+    modalOverlay.style.display = s ? 'block' : 'none';
+    if (s) adminPassInput.focus();
 }
 
 function checkAdminSession() {
@@ -236,46 +277,20 @@ function checkAdminSession() {
 }
 
 function loginAdmin() {
-    if (checkAdminSession()) {
-        toggleAdminPanel(true);
-        return;
-    }
-    toggleLoginModal(true);
+    if (checkAdminSession()) toggleAdminPanel(true);
+    else toggleLoginModal(true);
 }
 
-function toggleLoginModal(show) {
-    const modal = document.getElementById('loginModal');
-    modal.style.display = show ? 'block' : 'none';
-    modalOverlay.style.display = show ? 'block' : 'none';
-    if (show) document.getElementById('adminPassInput').focus();
-}
-
-document.getElementById('confirmLogin').addEventListener('click', () => {
-    const pass = document.getElementById('adminPassInput').value;
-    if (pass === ADMIN_PASS) {
+function handleLogin() {
+    if (adminPassInput.value === ADMIN_PASS) {
         localStorage.setItem('isAdmin', 'true');
         checkAdminSession();
         toggleLoginModal(false);
         toggleAdminPanel(true);
-        document.getElementById('adminPassInput').value = '';
     } else {
-        alert("Contraseña incorrecta");
+        alert("Clave incorrecta");
     }
-});
-
-document.getElementById('cancelLogin').addEventListener('click', () => {
-    toggleLoginModal(false);
-    document.getElementById('adminPassInput').value = '';
-});
-
-function renderAdminProducts() {
-    const grid = document.getElementById('adminProductGrid');
-    grid.innerHTML = products.map(p => `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--glass-border);">
-            <span>${p.name} (${p.department} > ${p.category})</span>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">(Gestionado vía Google Sheets)</p>
-        </div>
-    `).join('');
+    adminPassInput.value = '';
 }
 
 function handleOrder() {
@@ -283,23 +298,15 @@ function handleOrder() {
     const phone = document.getElementById('custPhone').value;
     const addr = document.getElementById('custAddr').value;
     const total = cartTotal.innerText;
-
-    let orderDetails = cart.map(item => `- ${item.name} x${item.quantity} (${item.price})`).join('%0A');
-    const message = `*NUEVO PEDIDO*%0A%0A*Cliente:* ${name}%0A*WhatsApp:* ${phone}%0A*Dirección:* ${addr}%0A%0A*Productos:*%0A${orderDetails}%0A%0A*TOTAL:* ${total}`;
-    
-    const whatsappUrl = `https://wa.me/${businessPhone}?text=${message}`;
-    window.open(whatsappUrl, '_blank');
-    
-    cart = [];
-    updateCartUI();
-    toggleModal(false);
-    alert('¡Pedido enviado exitosamente!');
+    const details = cart.map(i => `- ${i.name} x${i.quantity} ($${formatPrice(i.price)})`).join('%0A');
+    const msg = `*NUEVO PEDIDO*%0A%0A*Cliente:* ${name}%0A*WhatsApp:* ${phone}%0A*Dir:* ${addr}%0A%0A*Productos:*%0A${details}%0A%0A*TOTAL:* ${total}`;
+    window.open(`https://wa.me/${businessPhone}?text=${msg}`, '_blank');
+    cart = []; updateCartUI(); toggleModal(false);
 }
 
 function toggleSubmenu(e) {
     e.preventDefault();
-    const submenu = e.target.nextElementSibling;
-    submenu.classList.toggle('active');
+    e.target.nextElementSibling.classList.toggle('active');
 }
 
 function handleHeaderScroll() {
