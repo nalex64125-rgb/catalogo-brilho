@@ -11,15 +11,12 @@ let cart = [];
 const productGrid = document.getElementById('productGrid');
 const adminPanel = document.getElementById('adminPanel');
 const productForm = document.getElementById('productForm');
-const adminLoginBtn = document.getElementById('adminLoginBtn');
-const loginModal = document.getElementById('loginModal');
-const adminPassInput = document.getElementById('adminPassInput');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     setupEventListeners();
-    setInterval(loadProducts, 30000); 
+    setInterval(loadProducts, 20000); 
 });
 
 function setupEventListeners() {
@@ -36,7 +33,7 @@ function setupEventListeners() {
         handleOrder();
     });
     
-    adminLoginBtn.addEventListener('click', () => toggleLoginModal(true));
+    document.getElementById('adminLoginBtn').addEventListener('click', () => toggleLoginModal(true));
     document.getElementById('closeAdmin').addEventListener('click', () => toggleAdminPanel(false));
     productForm.addEventListener('submit', handleAddProduct);
     
@@ -49,48 +46,55 @@ function setupEventListeners() {
 async function loadProducts() {
     try {
         const response = await fetch(`${WEB_APP_URL}?t=${Date.now()}`);
-        const data = await response.json();
-        if (JSON.stringify(products) !== JSON.stringify(data)) {
-            products = data;
-            renderProducts(products);
-            renderSidebar();
-            if (adminPanel.style.display === 'block') renderAdminProducts();
-        }
+        products = await response.json();
+        renderProducts(products);
+        renderSidebar();
+        if (adminPanel.style.display === 'block') renderAdminProducts();
     } catch (e) {
-        console.error("Fetch error:", e);
+        console.error("Load error", e);
     }
 }
 
-function handleAddProduct(e) {
+async function handleAddProduct(e) {
     e.preventDefault();
     const btn = productForm.querySelector('button[type="submit"]');
-    btn.disabled = true;
-    btn.innerText = "Procesando...";
+    const status = document.createElement('p');
+    status.id = "adminStatus";
+    status.style.cssText = "grid-column: span 2; color: var(--primary); font-size: 0.8rem; text-align: center; margin-bottom: 0.5rem;";
+    
+    const existingStatus = document.getElementById('adminStatus');
+    if (existingStatus) existingStatus.remove();
+    productForm.insertBefore(status, btn.parentElement);
 
     const file = document.getElementById('pFile').files[0];
-    if (!file) {
-        alert("Selecciona una foto");
-        btn.disabled = false;
-        btn.innerText = "Guardar";
-        return;
-    }
+    if (!file) { status.innerText = "❌ Selecciona una foto"; return; }
 
-    const reader = new FileReader();
-    reader.onerror = () => alert("Error al leer el archivo");
-    reader.onload = async (event) => {
-        const base64 = event.target.result;
+    btn.disabled = true;
+    status.innerText = "⏳ Optimizando imagen...";
+
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 350;
+        const scale = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
         
+        status.innerText = "🚀 Enviando a Google Sheets...";
+
         const payload = {
             name: document.getElementById('pName').value,
             ref: document.getElementById('pRef').value,
             price: document.getElementById('pPrice').value,
             dept: document.getElementById('pDept').value,
             cat: document.getElementById('pCategory').value,
-            img: base64,
+            img: compressedBase64,
             desc: document.getElementById('pDesc').value
         };
-
-        alert("¡Foto preparada! Enviando a Google Sheets...");
 
         try {
             await fetch(WEB_APP_URL, {
@@ -98,18 +102,17 @@ function handleAddProduct(e) {
                 mode: 'no-cors',
                 body: JSON.stringify(payload)
             });
-            alert("¡ÉXITO! Producto guardado. Espera unos segundos y aparecerá.");
-            productForm.reset();
-            toggleAdminPanel(false);
-            loadProducts();
+            status.innerHTML = "✅ ¡ÉXITO! Guardado correctamente.";
+            setTimeout(() => {
+                productForm.reset();
+                toggleAdminPanel(false);
+                loadProducts();
+            }, 2000);
         } catch (err) {
-            alert("Error de conexión: " + err.message);
-        } finally {
+            status.innerText = "❌ Error: " + err.message;
             btn.disabled = false;
-            btn.innerText = "Guardar";
         }
     };
-    reader.readAsDataURL(file);
 }
 
 async function deleteProduct(id) {
@@ -120,7 +123,7 @@ async function deleteProduct(id) {
             mode: 'no-cors',
             body: JSON.stringify({ action: 'DELETE', id: id })
         });
-        alert("Eliminado. Recargando...");
+        alert("Eliminado.");
         loadProducts();
     } catch (e) { alert("Error"); }
 }
@@ -128,7 +131,7 @@ async function deleteProduct(id) {
 function renderProducts(items) {
     const grid = document.getElementById('productGrid');
     if (!items || items.length === 0) {
-        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; padding: 5rem;">El catálogo está vacío. ¡Añade tu primer producto!</p>';
+        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; padding: 5rem;">El catálogo está vacío. ¡Sube tu primer producto!</p>';
         return;
     }
     grid.innerHTML = items.map(p => `
@@ -147,6 +150,7 @@ function renderProducts(items) {
 
 function renderSidebar() {
     const deptList = document.getElementById('deptList');
+    if (!deptList) return;
     const depts = [...new Set(products.map(p => p.dept).filter(Boolean))];
     let html = `<li><a href="#" onclick="filterBy('all')">Todos</a></li>`;
     depts.forEach(d => {
@@ -158,12 +162,7 @@ function renderSidebar() {
 
 function renderAdminProducts() {
     const grid = document.getElementById('adminProductGrid');
-    grid.innerHTML = products.map(p => `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--glass-border);">
-            <span>${p.name}</span>
-            <button onclick="deleteProduct('${p.id}')" style="color:#ff4444; background:none; border:1px solid #ff4444; padding:2px 8px; cursor:pointer;">Borrar</button>
-        </div>
-    `).join('');
+    grid.innerHTML = products.map(p => `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--glass-border);"><span>${p.name}</span><button onclick="deleteProduct('${p.id}')" style="color:#ff4444; background:none; border:none; cursor:pointer;">Borrar</button></div>`).join('');
 }
 
 function addToCart(pid) {
@@ -196,10 +195,9 @@ function filterBy(c, d) { renderProducts(c === 'all' ? products : products.filte
 function toggleCart(s) { document.getElementById('cartSidebar').classList.toggle('active', s); }
 function toggleModal(s) { document.getElementById('checkoutModal').style.display = s ? 'block' : 'none'; document.getElementById('modalOverlay').style.display = s ? 'block' : 'none'; }
 function toggleAdminPanel(s) { adminPanel.style.display = s ? 'block' : 'none'; document.getElementById('modalOverlay').style.display = s ? 'block' : 'none'; if(s) renderAdminProducts(); }
-function toggleLoginModal(s) { loginModal.style.display = s ? 'block' : 'none'; document.getElementById('modalOverlay').style.display = s ? 'block' : 'none'; if(s) adminPassInput.focus(); }
-function handleLogin() { if (adminPassInput.value === ADMIN_PASS) { toggleLoginModal(false); toggleAdminPanel(true); } else alert("Clave incorrecta"); adminPassInput.value = ''; }
+function toggleLoginModal(s) { document.getElementById('loginModal').style.display = s ? 'block' : 'none'; document.getElementById('modalOverlay').style.display = s ? 'block' : 'none'; if(s) document.getElementById('adminPassInput').focus(); }
+function handleLogin() { if (document.getElementById('adminPassInput').value === ADMIN_PASS) { toggleLoginModal(false); toggleAdminPanel(true); } else alert("Clave incorrecta"); document.getElementById('adminPassInput').value = ''; }
 function handleOrder() {
-    const n = document.getElementById('custName').value, ph = document.getElementById('custPhone').value, ad = document.getElementById('custAddr').value;
     const msg = `PEDIDO: ${cart.map(i => i.name + ' x' + i.quantity).join(', ')}`;
     window.open(`https://wa.me/${businessPhone}?text=${encodeURIComponent(msg)}`, '_blank');
     cart = []; updateCartUI(); toggleModal(false);
