@@ -16,29 +16,35 @@ const productForm = document.getElementById('productForm');
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     setupEventListeners();
-    setInterval(loadProducts, 20000); 
+    setInterval(loadProducts, 30000); 
 });
 
 function setupEventListeners() {
-    document.getElementById('cartBtn').addEventListener('click', () => toggleCart(true));
-    document.getElementById('closeCart').addEventListener('click', () => toggleCart(false));
-    document.getElementById('checkoutBtn').addEventListener('click', () => {
+    const ids = ['cartBtn', 'closeCart', 'checkoutBtn', 'cancelCheckout', 'adminLoginBtn', 'closeAdmin', 'confirmLogin', 'cancelLogin'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) console.warn("Missing element:", id);
+    });
+
+    document.getElementById('cartBtn')?.addEventListener('click', () => toggleCart(true));
+    document.getElementById('closeCart')?.addEventListener('click', () => toggleCart(false));
+    document.getElementById('checkoutBtn')?.addEventListener('click', () => {
         if (cart.length === 0) return alert('El carrito está vacío');
         toggleCart(false);
         toggleModal(true);
     });
-    document.getElementById('cancelCheckout').addEventListener('click', () => toggleModal(false));
-    document.getElementById('checkoutForm').addEventListener('submit', (e) => {
+    document.getElementById('cancelCheckout')?.addEventListener('click', () => toggleModal(false));
+    document.getElementById('checkoutForm')?.addEventListener('submit', (e) => {
         e.preventDefault();
         handleOrder();
     });
     
-    document.getElementById('adminLoginBtn').addEventListener('click', () => toggleLoginModal(true));
-    document.getElementById('closeAdmin').addEventListener('click', () => toggleAdminPanel(false));
-    productForm.addEventListener('submit', handleAddProduct);
+    document.getElementById('adminLoginBtn')?.addEventListener('click', () => toggleLoginModal(true));
+    document.getElementById('closeAdmin')?.addEventListener('click', () => toggleAdminPanel(false));
+    productForm?.addEventListener('submit', handleAddProduct);
     
-    document.getElementById('confirmLogin').addEventListener('click', handleLogin);
-    document.getElementById('cancelLogin').addEventListener('click', () => toggleLoginModal(false));
+    document.getElementById('confirmLogin')?.addEventListener('click', handleLogin);
+    document.getElementById('cancelLogin')?.addEventListener('click', () => toggleLoginModal(false));
     
     window.addEventListener('scroll', handleHeaderScroll);
 }
@@ -46,55 +52,46 @@ function setupEventListeners() {
 async function loadProducts() {
     try {
         const response = await fetch(`${WEB_APP_URL}?t=${Date.now()}`);
-        products = await response.json();
-        renderProducts(products);
-        renderSidebar();
-        if (adminPanel.style.display === 'block') renderAdminProducts();
+        const data = await response.json();
+        if (JSON.stringify(products) !== JSON.stringify(data)) {
+            products = data;
+            renderProducts(products);
+            renderSidebar();
+            if (adminPanel.style.display === 'block') renderAdminProducts();
+        }
     } catch (e) {
         console.error("Load error", e);
     }
 }
 
 async function handleAddProduct(e) {
-    e.preventDefault();
-    const btn = productForm.querySelector('button[type="submit"]');
-    const status = document.createElement('p');
-    status.id = "adminStatus";
-    status.style.cssText = "grid-column: span 2; color: var(--primary); font-size: 0.8rem; text-align: center; margin-bottom: 0.5rem;";
+    if (e) e.preventDefault();
     
-    const existingStatus = document.getElementById('adminStatus');
-    if (existingStatus) existingStatus.remove();
-    productForm.insertBefore(status, btn.parentElement);
+    const btn = productForm.querySelector('button[type="submit"]');
+    const status = document.getElementById('adminStatus') || document.createElement('p');
+    status.id = "adminStatus";
+    status.style.cssText = "grid-column: span 2; color: var(--primary); text-align: center; margin-bottom: 10px;";
+    if (!document.getElementById('adminStatus')) productForm.insertBefore(status, btn.parentElement);
 
     const file = document.getElementById('pFile').files[0];
     if (!file) { status.innerText = "❌ Selecciona una foto"; return; }
 
     btn.disabled = true;
-    status.innerText = "⏳ Optimizando imagen...";
+    status.innerText = "⏳ Procesando producto...";
 
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 350;
-        const scale = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
-        
-        status.innerText = "🚀 Enviando a Google Sheets...";
-
+    const reader = new FileReader();
+    reader.onload = async (event) => {
         const payload = {
             name: document.getElementById('pName').value,
             ref: document.getElementById('pRef').value,
             price: document.getElementById('pPrice').value,
             dept: document.getElementById('pDept').value,
             cat: document.getElementById('pCategory').value,
-            img: compressedBase64,
+            img: event.target.result,
             desc: document.getElementById('pDesc').value
         };
+
+        status.innerText = "🚀 Enviando a Google (Espera...)";
 
         try {
             await fetch(WEB_APP_URL, {
@@ -102,28 +99,28 @@ async function handleAddProduct(e) {
                 mode: 'no-cors',
                 body: JSON.stringify(payload)
             });
-            status.innerHTML = "✅ ¡ÉXITO! Guardado correctamente.";
+            status.innerHTML = "✅ ¡ÉXITO! Guardado.";
             setTimeout(() => {
                 productForm.reset();
                 toggleAdminPanel(false);
                 loadProducts();
-            }, 2000);
+            }, 1500);
         } catch (err) {
-            status.innerText = "❌ Error: " + err.message;
+            status.innerText = "❌ Error de red";
             btn.disabled = false;
         }
     };
+    reader.readAsDataURL(file);
 }
 
 async function deleteProduct(id) {
-    if (!confirm('¿Eliminar producto?')) return;
+    if (!confirm('¿Eliminar?')) return;
     try {
         await fetch(WEB_APP_URL, {
             method: 'POST',
             mode: 'no-cors',
             body: JSON.stringify({ action: 'DELETE', id: id })
         });
-        alert("Eliminado.");
         loadProducts();
     } catch (e) { alert("Error"); }
 }
@@ -131,7 +128,7 @@ async function deleteProduct(id) {
 function renderProducts(items) {
     const grid = document.getElementById('productGrid');
     if (!items || items.length === 0) {
-        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; padding: 5rem;">El catálogo está vacío. ¡Sube tu primer producto!</p>';
+        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; padding: 5rem;">Configurando base de datos...</p>';
         return;
     }
     grid.innerHTML = items.map(p => `
