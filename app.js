@@ -1,5 +1,5 @@
 // Configuration
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyCHryfeKiZeQ1FHCCEez6GQoqbpK_-X2jT2W34hr1arfupjVlQU4K2jdEod-Be-CMh/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx20ZnNP98AaZageJqz_oOCNtBjXZg7OzouKtQNKAQeP-hk0k-hmTLC758hY2cCNyor/exec";
 const ADMIN_PASS = "1234";
 const businessPhone = "584120000000"; 
 
