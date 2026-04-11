@@ -34,7 +34,7 @@ const cancelLogin = document.getElementById('cancelLogin');
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     setupEventListeners();
-    setInterval(loadProducts, 20000); // 20s real-time refresh
+    setInterval(loadProducts, 20000); 
 });
 
 function setupEventListeners() {
@@ -81,43 +81,36 @@ async function loadProducts() {
 async function handleAddProduct(e) {
     e.preventDefault();
     const submitBtn = productForm.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerText;
-    submitBtn.innerText = "Optimizando Imagen...";
+    submitBtn.innerText = "Procesando...";
     submitBtn.disabled = true;
 
     const file = document.getElementById('pFile').files[0];
     if (!file) {
         alert("Selecciona una imagen");
         submitBtn.disabled = false;
-        submitBtn.innerText = originalText;
+        submitBtn.innerText = "Guardar";
         return;
     }
 
-    // IMAGE COMPRESSION LOGIC
     const img = new Image();
     img.src = URL.createObjectURL(file);
     img.onload = async () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 400; // Small size for Google Sheets compatibility
+        const MAX_WIDTH = 300; // Smallest safe size for direct Sheet storage
         const scale = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scale;
-
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        // Quality set to 0.5 to stay under 32k cell limit
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
         
-        submitBtn.innerText = "Guardando en Google...";
-
-        const item = {
+        const payload = {
             name: document.getElementById('pName').value,
             ref: document.getElementById('pRef').value,
             price: document.getElementById('pPrice').value,
-            department: document.getElementById('pDept').value,
-            category: document.getElementById('pCategory').value,
-            image: compressedBase64,
+            dept: document.getElementById('pDept').value,
+            cat: document.getElementById('pCategory').value,
+            img: compressedBase64,
             desc: document.getElementById('pDesc').value
         };
 
@@ -125,31 +118,31 @@ async function handleAddProduct(e) {
             await fetch(WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                body: JSON.stringify(item)
+                body: JSON.stringify(payload)
             });
-            alert("¡Producto Guardado con Éxito!");
+            alert("¡Guardado! Espera unos segundos a que aparezca.");
             productForm.reset();
             loadProducts();
             toggleAdminPanel(false);
         } catch (error) {
-            alert("Error al conectar con Google");
+            alert("Error al guardar");
         } finally {
             submitBtn.disabled = false;
-            submitBtn.innerText = originalText;
+            submitBtn.innerText = "Guardar";
         }
     };
 }
 
 async function deleteProduct(id) {
-    if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+    if (!confirm('¿Eliminar producto?')) return;
     try {
         await fetch(WEB_APP_URL, {
             method: 'POST',
             mode: 'no-cors',
             body: JSON.stringify({ action: 'DELETE', id: id })
         });
-        alert("Enviando orden de eliminación...");
-        setTimeout(loadProducts, 2000); // 2s delay to allow GAS to finish
+        alert("Eliminando...");
+        setTimeout(loadProducts, 2000);
     } catch (error) {
         alert("Error al eliminar");
     }
@@ -163,9 +156,9 @@ function renderProducts(items) {
     }
     productGrid.innerHTML = items.map(p => `
         <div class="product-card glass">
-            <img src="${p.image}" alt="${p.name}" class="product-image">
+            <img src="${p.img}" alt="${p.name}" class="product-image">
             <div class="product-info">
-                <span class="product-tag">${p.department || 'General'} | ${p.category || 'Otros'}</span>
+                <span class="product-tag">${p.dept || 'General'} | ${p.cat || 'Otros'}</span>
                 <p style="font-size: 0.7rem; color: var(--text-muted);">Ref: ${p.ref || 'N/A'}</p>
                 <h3 class="product-name">${p.name}</h3>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">${p.desc || ''}</p>
@@ -179,10 +172,10 @@ function renderProducts(items) {
 function renderSidebar() {
     const deptList = document.getElementById('deptList');
     if (!deptList) return;
-    const departments = [...new Set(products.map(p => p.department).filter(Boolean))];
+    const departments = [...new Set(products.map(p => p.dept).filter(Boolean))];
     let html = `<li><a href="#" onclick="filterBy('all')">Todos</a></li>`;
     departments.forEach(dept => {
-        const categories = [...new Set(products.filter(p => p.department === dept).map(p => p.category).filter(Boolean))];
+        const categories = [...new Set(products.filter(p => p.dept === dept).map(p => p.cat).filter(Boolean))];
         html += `<li class="has-submenu"><a href="#" onclick="toggleSubmenu(event)">${dept} ▾</a><ul class="submenu">${categories.map(cat => `<li><a href="#" onclick="filterBy('${cat}', '${dept}')">${cat}</a></li>`).join('')}</ul></li>`;
     });
     deptList.innerHTML = html;
@@ -192,7 +185,7 @@ function renderAdminProducts() {
     const grid = document.getElementById('adminProductGrid');
     grid.innerHTML = products.map(p => `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--glass-border);">
-            <div><p style="font-weight: bold; margin: 0;">${p.name}</p><p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">${p.department} > ${p.category}</p></div>
+            <div><p style="font-weight: bold; margin: 0;">${p.name}</p><p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">${p.dept} > ${p.cat}</p></div>
             <button onclick="deleteProduct('${p.id}')" style="background: none; border: 1px solid #ff4444; color: #ff4444; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Eliminar</button>
         </div>
     `).join('');
@@ -218,14 +211,14 @@ function changeQuantity(pid, delta) {
 
 function updateCartUI() {
     cartCount.innerText = cart.reduce((s, i) => s + i.quantity, 0);
-    cartItems.innerHTML = cart.map(i => `<div class="cart-item"><img src="${i.image}"><div class="cart-item-info"><h4>${i.name}</h4><p>$${formatPrice(i.price)}</p><div style="display:flex; align-items:center; gap: 0.5rem; margin-top:0.3rem;"><button onclick="changeQuantity('${i.id}', -1)" style="background:rgba(255,255,255,0.1); border:none; color:white; width:24px;">-</button><span>${i.quantity}</span><button onclick="changeQuantity('${i.id}', 1)" style="background:rgba(255,255,255,0.1); border:none; color:white; width:24px;">+</button></div></div><button onclick="changeQuantity('${i.id}', -${i.quantity})" style="background:none; border:none; color:#ff4444; cursor:pointer;">&times;</button></div>`).join('');
+    cartItems.innerHTML = cart.map(i => `<div class="cart-item"><img src="${i.img}"><div class="cart-item-info"><h4>${i.name}</h4><p>$${formatPrice(i.price)}</p><div style="display:flex; align-items:center; gap: 0.5rem; margin-top:0.3rem;"><button onclick="changeQuantity('${i.id}', -1)" style="background:rgba(255,255,255,0.1); border:none; color:white; width:24px;">-</button><span>${i.quantity}</span><button onclick="changeQuantity('${i.id}', 1)" style="background:rgba(255,255,255,0.1); border:none; color:white; width:24px;">+</button></div></div><button onclick="changeQuantity('${i.id}', -${i.quantity})" style="background:none; border:none; color:#ff4444; cursor:pointer;">&times;</button></div>`).join('');
     const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
     cartTotal.innerText = `$${total.toLocaleString()}`;
 }
 
 function formatPrice(p) { if (!p) return '0'; const num = parsePrice(p); return num % 1 === 0 ? num.toLocaleString() : num.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 }); }
 function parsePrice(p) { if (typeof p === 'number') return p; return parseFloat(String(p).replace('$', '').replace(/\s/g, '').replace(',', '.')) || 0; }
-function filterBy(cat, dept) { if (cat === 'all') renderProducts(products); else renderProducts(products.filter(p => p.category === cat && p.department === dept)); }
+function filterBy(c, d) { if (c === 'all') renderProducts(products); else renderProducts(products.filter(p => p.cat === c && p.dept === d)); }
 function toggleCart(s) { cartSidebar.classList.toggle('active', s); }
 function toggleModal(s) { checkoutModal.style.display = s ? 'block' : 'none'; modalOverlay.style.display = s ? 'block' : 'none'; }
 function toggleAdminPanel(s) { adminPanel.style.display = s ? 'block' : 'none'; modalOverlay.style.display = s ? 'block' : 'none'; if (s) renderAdminProducts(); }
