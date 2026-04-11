@@ -34,7 +34,9 @@ const cancelLogin = document.getElementById('cancelLogin');
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     setupEventListeners();
-    checkAdminSession();
+    
+    // REAL-TIME UPDATE: Refresh products every 15 seconds
+    setInterval(loadProducts, 15000);
 });
 
 function setupEventListeners() {
@@ -51,7 +53,7 @@ function setupEventListeners() {
         handleOrder();
     });
     
-    adminLoginBtn.addEventListener('click', loginAdmin);
+    adminLoginBtn.addEventListener('click', () => toggleLoginModal(true));
     closeAdmin.addEventListener('click', () => toggleAdminPanel(false));
     productForm.addEventListener('submit', handleAddProduct);
     
@@ -63,15 +65,22 @@ function setupEventListeners() {
 
 // Data Handling
 async function loadProducts() {
-    productGrid.innerHTML = '<div style="text-align:center; grid-column: 1/-1; padding: 3rem;"><p>Cargando catálogo premium...</p></div>';
+    // Add timestamp to bypass cache
+    const urlWithCacheBuster = `${WEB_APP_URL}?t=${new Date().getTime()}`;
+    
     try {
-        const response = await fetch(WEB_APP_URL);
-        products = await response.json();
-        renderProducts(products);
-        renderSidebar();
+        const response = await fetch(urlWithCacheBuster);
+        const data = await response.json();
+        
+        // Only re-render if something changed, to avoid flicker
+        if (JSON.stringify(products) !== JSON.stringify(data)) {
+            products = data;
+            renderProducts(products);
+            renderSidebar();
+            if (adminPanel.style.display === 'block') renderAdminProducts();
+        }
     } catch (error) {
         console.error("Error loading products:", error);
-        productGrid.innerHTML = '<div style="text-align:center; grid-column: 1/-1; padding: 3rem;"><p>Error al cargar productos. Verifica que la aplicación de Google sea pública ("Anyone").</p></div>';
     }
 }
 
@@ -130,7 +139,7 @@ async function deleteProduct(id) {
             mode: 'no-cors',
             body: JSON.stringify({ action: 'DELETE', id: id })
         });
-        alert("Solicitud de eliminación enviada. Los cambios pueden tardar unos segundos en reflejarse.");
+        alert("Enviando orden de eliminación...");
         loadProducts();
     } catch (error) {
         alert("Error al eliminar");
@@ -140,7 +149,7 @@ async function deleteProduct(id) {
 // UI Functions
 function renderProducts(items) {
     if (!items || items.length === 0) {
-        productGrid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">No hay productos registrados.</p>';
+        productGrid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; padding: 5rem;">No hay productos registrados en tu Google Sheets.</p>';
         return;
     }
     productGrid.innerHTML = items.map(p => `
@@ -268,23 +277,8 @@ function toggleLoginModal(s) {
     if (s) adminPassInput.focus();
 }
 
-function checkAdminSession() {
-    if (localStorage.getItem('isAdmin') === 'true') {
-        adminLoginBtn.innerText = "⭐ Panel Admin";
-        return true;
-    }
-    return false;
-}
-
-function loginAdmin() {
-    if (checkAdminSession()) toggleAdminPanel(true);
-    else toggleLoginModal(true);
-}
-
 function handleLogin() {
     if (adminPassInput.value === ADMIN_PASS) {
-        localStorage.setItem('isAdmin', 'true');
-        checkAdminSession();
         toggleLoginModal(false);
         toggleAdminPanel(true);
     } else {
