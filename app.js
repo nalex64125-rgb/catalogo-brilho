@@ -240,16 +240,33 @@ function loginAdmin() {
         toggleAdminPanel(true);
         return;
     }
+    toggleLoginModal(true);
+}
 
-    const pass = prompt("Ingrese la contraseña de administrador:");
+function toggleLoginModal(show) {
+    const modal = document.getElementById('loginModal');
+    modal.style.display = show ? 'block' : 'none';
+    modalOverlay.style.display = show ? 'block' : 'none';
+    if (show) document.getElementById('adminPassInput').focus();
+}
+
+document.getElementById('confirmLogin').addEventListener('click', () => {
+    const pass = document.getElementById('adminPassInput').value;
     if (pass === ADMIN_PASS) {
         localStorage.setItem('isAdmin', 'true');
-        checkAdminSession(); // Update button text
+        checkAdminSession();
+        toggleLoginModal(false);
         toggleAdminPanel(true);
+        document.getElementById('adminPassInput').value = '';
     } else {
         alert("Contraseña incorrecta");
     }
-}
+});
+
+document.getElementById('cancelLogin').addEventListener('click', () => {
+    toggleLoginModal(false);
+    document.getElementById('adminPassInput').value = '';
+});
 
 function renderAdminProducts() {
     const grid = document.getElementById('adminProductGrid');
