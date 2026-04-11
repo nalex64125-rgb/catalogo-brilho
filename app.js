@@ -30,6 +30,7 @@ const adminLoginBtn = document.getElementById('adminLoginBtn');
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     setupEventListeners();
+    checkAdminSession();
 });
 
 function setupEventListeners() {
@@ -226,9 +227,24 @@ function toggleAdminPanel(show) {
     if (show) renderAdminProducts();
 }
 
+function checkAdminSession() {
+    if (localStorage.getItem('isAdmin') === 'true') {
+        adminLoginBtn.innerText = "⭐ Panel Admin";
+        return true;
+    }
+    return false;
+}
+
 function loginAdmin() {
+    if (checkAdminSession()) {
+        toggleAdminPanel(true);
+        return;
+    }
+
     const pass = prompt("Ingrese la contraseña de administrador:");
     if (pass === ADMIN_PASS) {
+        localStorage.setItem('isAdmin', 'true');
+        checkAdminSession(); // Update button text
         toggleAdminPanel(true);
     } else {
         alert("Contraseña incorrecta");
