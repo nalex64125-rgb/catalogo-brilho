@@ -90,10 +90,22 @@ function initEvents() {
     els.closeCartBtn.addEventListener('click', () => toggleCart(false));
     els.cartOverlay.addEventListener('click', () => toggleCart(false));
 
-    // Download Ticket Button
+    // Download Ticket Button (inside checkout form)
     document.getElementById('downloadTicketBtn').addEventListener('click', () => {
-        if (cart.length === 0) return alert('El carrito está vacío. Agrega productos primero.');
-        generateTicketPDF();
+        // Validate form fields before generating ticket
+        const form = document.getElementById('checkoutForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        const clientData = {
+            name: document.getElementById('custName').value.trim(),
+            idNum: document.getElementById('custId').value.trim(),
+            phone: document.getElementById('custPhone').value.trim(),
+            transport: document.getElementById('custTransport').value.trim(),
+            addr: document.getElementById('custAddr').value.trim()
+        };
+        generateTicketPDF(clientData);
     });
 
     // Checkout Modal
@@ -531,10 +543,23 @@ function parsePrice(p) {
 }
 
 // -------- TICKET PDF GENERATOR --------
-function generateTicketPDF() {
+function generateTicketPDF(client = {}) {
     const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
     const fecha = new Date().toLocaleString('es-VE', { dateStyle: 'long', timeStyle: 'short' });
     const numTicket = 'TKT-' + Date.now().toString().slice(-6);
+
+    const clientRows = client.name ? `
+        <div class="client-box">
+            <h3>Datos del Cliente</h3>
+            <table class="client-table">
+                <tr><td><strong>Nombre:</strong></td><td>${client.name}</td></tr>
+                <tr><td><strong>Cédula/RIF:</strong></td><td>${client.idNum}</td></tr>
+                <tr><td><strong>Teléfono:</strong></td><td>${client.phone}</td></tr>
+                <tr><td><strong>Agencia Envío:</strong></td><td>${client.transport}</td></tr>
+                <tr><td><strong>Dirección:</strong></td><td>${client.addr}</td></tr>
+            </table>
+        </div>
+    ` : '';
 
     const rows = cart.map(i => `
         <tr>
@@ -559,9 +584,14 @@ function generateTicketPDF() {
             .header { text-align: center; border-bottom: 3px solid #d4af37; padding-bottom: 20px; margin-bottom: 24px; }
             .header h1 { font-size: 2rem; letter-spacing: 4px; color: #1a1a2e; }
             .header .tagline { color: #888; font-size: 0.85rem; letter-spacing: 2px; margin-top: 4px; }
-            .ticket-meta { display: flex; justify-content: space-between; background: #f8f8f8; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 0.85rem; }
+            .ticket-meta { display: flex; justify-content: space-between; background: #f8f8f8; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; }
             .ticket-meta span { color: #555; }
             .ticket-meta strong { color: #222; }
+            .client-box { background: #fffbf0; border: 1px solid #d4af37; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
+            .client-box h3 { font-size: 0.9rem; color: #d4af37; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+            .client-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+            .client-table td { padding: 4px 8px; }
+            .client-table td:first-child { width: 140px; color: #555; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
             thead tr { background: #1a1a2e; color: #d4af37; }
             thead th { padding: 10px 12px; text-align: left; font-size: 0.85rem; font-weight: 600; }
@@ -571,21 +601,19 @@ function generateTicketPDF() {
             .total-box span { font-size: 1.4rem; font-weight: 700; color: #1a1a2e; }
             .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #aaa; font-size: 0.78rem; }
             .gold { color: #d4af37; }
-            @media print {
-                body { padding: 20px; }
-                button { display: none !important; }
-            }
+            @media print { body { padding: 20px; } button { display: none !important; } }
         </style>
     </head>
     <body>
         <div class="header">
             <h1>BRILHO <span class="gold">JOYAS</span></h1>
-            <div class="tagline">Joyas • Silver • Steel &mdash; Catálogo Online</div>
+            <div class="tagline">Joyas • Silver • Steel &mdash; Catálogo Online</div>
         </div>
         <div class="ticket-meta">
             <div><span>Ticket N°: </span><strong>${numTicket}</strong></div>
             <div><span>Fecha: </span><strong>${fecha}</strong></div>
         </div>
+        ${clientRows}
         <table>
             <thead>
                 <tr>
@@ -611,8 +639,8 @@ function generateTicketPDF() {
     const printWin = window.open('', '_blank', 'width=750,height=650');
     printWin.document.write(ticketHTML);
     printWin.document.close();
-    printWin.focus();
-    // Delay slightly so fonts load before print dialog
+    printWin.focus()
+
     setTimeout(() => {
         printWin.print();
     }, 600);
