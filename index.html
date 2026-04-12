@@ -3,191 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Premium Catalog | Luxury Collection</title>
-    <meta name="description" content="Explore our exclusive collection of premium products with luxury design and unmatched quality.">
+    <title>Catálogo Premium</title>
+    <meta name="description" content="Colección exclusiva. Diseño y calidad superior.">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
     
-    <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header id="header" class="glass">
-        <div class="container nav">
+    <!-- Navbar -->
+    <header class="navbar glass" id="navbar">
+        <div class="nav-container">
+            <button id="mobileMenuBtn" class="icon-btn mobile-only">☰</button>
+            
             <a href="#" class="logo">
-                <img src="assets/logo_empresa.png" alt="Brilho Joias" class="logo-img">
+                <img src="assets/logo_empresa.png" alt="Logo Empresa" class="logo-img" onerror="this.src=''; this.alt='LOGO EMPRESA';">
             </a>
-            <ul class="nav-links">
-                <li><a href="#home">Inicio</a></li>
-                <li><a href="#catalog">Catálogo</a></li>
-                <li><a href="#about">Nosotros</a></li>
-                <li><a href="#contact">Contacto</a></li>
-            </ul>
-            <div class="header-actions" style="display: flex; gap: 1rem; align-items: center;">
-                <button id="cartBtn" class="btn glass" style="padding: 0.5rem 1rem; position: relative;">
-                    🛒 <span id="cartCount" style="background: var(--primary); color: var(--bg-darker); border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; position: absolute; top: -5px; right: -5px;">0</span>
+
+            <nav class="desktop-nav desktop-only">
+                <a href="#inicio" class="nav-link">Inicio</a>
+                <a href="#catalogo" class="nav-link">Catálogo</a>
+                <a href="#contacto" class="nav-link">Contacto</a>
+            </nav>
+
+            <div class="nav-actions">
+                <button id="cartBtn" class="icon-btn pr-relative">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    <span id="cartCount" class="badge">0</span>
                 </button>
-                <a href="#catalog" class="btn btn-primary">Ver Ahora</a>
             </div>
         </div>
     </header>
 
+    <!-- Mobile Drawer -->
+    <div id="mobileDrawer" class="mobile-drawer">
+        <div class="drawer-header">
+            <h3>Menú</h3>
+            <button id="closeMobileDrawer" class="icon-btn">✕</button>
+        </div>
+        <nav class="drawer-nav">
+            <a href="#inicio" class="drawer-link">Inicio</a>
+            <a href="#catalogo" class="drawer-link">Catálogo</a>
+            <a href="#contacto" class="drawer-link">Contacto</a>
+        </nav>
+        <div class="drawer-footer">
+            <p>Categorías</p>
+            <div id="mobileCategories" class="mobile-categories-list">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+    <div id="mobileOverlay" class="overlay"></div>
+
+    <!-- Hero -->
+    <section id="inicio" class="hero">
+        <div class="hero-content">
+            <h1>Colección Exclusiva</h1>
+            <p>Descubre nuestra línea de productos diseñados con el más alto estándar de calidad y elegancia atemporal.</p>
+            <a href="#catalogo" class="btn btn-primary">Ver Catálogo</a>
+        </div>
+    </section>
+
+    <!-- Categories Ribbon -->
+    <div class="categories-bar glass-light" id="catalogo">
+        <div class="categories-container" id="categoryRibbon">
+            <button class="cat-btn active" onclick="filterBy('all')">Todos</button>
+            <!-- Injected via JS -->
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <main class="main-container">
+        <div id="productGrid" class="product-grid">
+            <!-- Products injected via JS -->
+            <div style="grid-column: 1/-1; text-align: center; padding: 4rem; color: var(--gray-400);">
+                Procesando base de datos...
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer id="contacto" class="footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <img src="assets/logo_empresa.png" alt="Logo" class="footer-logo" onerror="this.src=''; this.alt='LOGO EMPRESA';">
+                <p>La referencia definitiva en elegancia y calidad superior.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Enlaces</h4>
+                <a href="#inicio">Inicio</a>
+                <a href="#catalogo">Catálogo</a>
+                <button id="adminLoginBtn" class="text-btn" style="text-align: left; padding: 0.5rem 0; color: var(--gray-500); cursor: pointer;">Acceso Administrador</button>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 Catálogo Premium. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
     <!-- Cart Sidebar -->
-    <div id="cartSidebar" class="glass cart-sidebar">
+    <div id="cartSidebar" class="cart-sidebar">
         <div class="cart-header">
-            <h3>Tu Carrito</h3>
-            <button id="closeCart" class="btn" style="background: transparent; color: var(--text-main); font-size: 1.5rem;">&times;</button>
+            <h2>Mi Carrito</h2>
+            <button id="closeCartBtn" class="icon-btn">✕</button>
         </div>
         <div id="cartItems" class="cart-items">
             <!-- Items injected by JS -->
         </div>
         <div class="cart-footer">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; font-weight: 700;">
+            <div class="cart-total">
                 <span>Total:</span>
-                <span id="cartTotal">$0</span>
+                <span id="cartTotal" class="total-amount">$0</span>
             </div>
-            <button id="checkoutBtn" class="btn btn-primary" style="width: 100%;">Finalizar Pedido</button>
+            <button id="checkoutBtn" class="btn btn-primary w-full">Finalizar Pedido</button>
         </div>
     </div>
+    <div id="cartOverlay" class="overlay"></div>
 
     <!-- Checkout Modal -->
-    <div id="checkoutModal" class="glass modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3000; padding: 2.5rem; border-radius: 20px; width: 90%; max-width: 500px;">
-        <h2 style="margin-bottom: 1.5rem; text-align: center;">Tus Datos</h2>
-        <form id="checkoutForm">
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">Nombre Completo</label>
-                <input type="text" id="custName" required class="glass" style="width: 100%; border: 1px solid var(--glass-border); padding: 0.8rem; color: #fff; border-radius: 10px; background: rgba(255,255,255,0.05);">
-            </div>
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">WhatsApp / Celular</label>
-                <input type="tel" id="custPhone" required class="glass" style="width: 100%; border: 1px solid var(--glass-border); padding: 0.8rem; color: #fff; border-radius: 10px; background: rgba(255,255,255,0.05);">
-            </div>
-            <div style="margin-bottom: 2rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">Dirección de Entrega</label>
-                <textarea id="custAddr" required class="glass" style="width: 100%; border: 1px solid var(--glass-border); padding: 0.8rem; color: #fff; border-radius: 10px; background: rgba(255,255,255,0.05); height: 80px;"></textarea>
-            </div>
-            <div style="display: flex; gap: 1rem;">
-                <button type="button" id="cancelCheckout" class="btn" style="flex: 1; background: rgba(255,255,255,0.1); color: #fff; border: none;">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="flex: 2;">Confirmar pedido</button>
-            </div>
-        </form>
-    </div>
-    <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2900;"></div>
-
-    <!-- Category Sidebar (Departments) -->
-    <aside id="categorySidebar" class="category-menu glass">
-        <h3>Departamentos</h3>
-        <ul id="deptList">
-            <li><a href="#" onclick="filterBy('all')">Todos</a></li>
-            <li class="has-submenu">
-                <a href="#" onclick="toggleSubmenu(event)">Joyería ▾</a>
-                <ul class="submenu">
-                    <li><a href="#" onclick="filterBy('Anillos')">Anillos</a></li>
-                    <li><a href="#" onclick="filterBy('Collares')">Collares</a></li>
-                    <li><a href="#" onclick="filterBy('Pulseras')">Pulseras</a></li>
-                </ul>
-            </li>
-            <li class="has-submenu">
-                <a href="#" onclick="toggleSubmenu(event)">Accesorios ▾</a>
-                <ul class="submenu">
-                    <li><a href="#" onclick="filterBy('Relojes')">Relojes</a></li>
-                    <li><a href="#" onclick="filterBy('Gafas')">Gafas</a></li>
-                    <li><a href="#" onclick="filterBy('Bolsos')">Bolsos</a></li>
-                </ul>
-            </li>
-        </ul>
-    </aside>
-
-    <!-- Login Modal -->
-    <div id="loginModal" class="glass modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5000; padding: 2.5rem; border-radius: 20px; width: 300px; text-align: center;">
-        <h3 style="margin-bottom: 1.5rem;">Acceso Admin</h3>
-        <input type="password" id="adminPassInput" placeholder="Contraseña" class="glass-input" style="text-align: center; margin-bottom: 1.5rem;">
-        <div style="display: flex; gap: 0.5rem;">
-            <button id="cancelLogin" class="btn" style="flex: 1; background: rgba(255,255,255,0.05);">Cancelar</button>
-            <button id="confirmLogin" class="btn btn-primary" style="flex: 1;">Entrar</button>
+    <div id="checkoutModal" class="modal">
+        <div class="modal-content glass">
+            <h2>Tus Datos de Envío</h2>
+            <p class="modal-subtitle">Completaremos este pedido a través de WhatsApp</p>
+            <form id="checkoutForm">
+                <div class="form-group">
+                    <label>Nombre y Apellido</label>
+                    <input type="text" id="custName" required class="input-base" placeholder="Ej. Juan Pérez">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono / WhatsApp</label>
+                    <input type="tel" id="custPhone" required class="input-base" placeholder="Ej. +58 412 1234567">
+                </div>
+                <div class="form-group">
+                    <label>Dirección de Entrega</label>
+                    <textarea id="custAddr" required class="input-base resize-none" rows="3" placeholder="Detalla tu dirección aquí..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancelCheckout" class="btn btn-outline">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Enviar Pedido</button>
+                </div>
+            </form>
         </div>
     </div>
+    <div id="modalOverlayCheckout" class="overlay-modal"></div>
 
-    <!-- Admin Panel Modal -->
-    <div id="adminPanel" class="glass modal" style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 4000; width: 90%; max-width: 800px; padding: 2rem; max-height: 80vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-            <h2>Panel de Administración</h2>
-            <button id="closeAdmin" class="btn">&times;</button>
-        </div>
-        <form id="productForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 15px;">
-            <input type="text" id="pName" placeholder="Nombre del Producto" required class="glass-input">
-            <input type="text" id="pRef" placeholder="Referencia" required class="glass-input">
-            <input type="number" id="pPrice" placeholder="Precio" required class="glass-input" step="any">
-            <input type="text" id="pDept" placeholder="Departamento (Ej: Joyería)" required class="glass-input">
-            <input type="text" id="pCategory" placeholder="Categoría (Ej: Anillos)" required class="glass-input">
-            <div style="grid-column: span 2;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">Imagen del Producto</label>
-                <input type="file" id="pFile" accept="image/*" class="glass-input">
+    <!-- Admin Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content glass text-center" style="max-width: 350px;">
+            <h2>Panel Admin</h2>
+            <p class="modal-subtitle mb-4">Ingresa tu contraseña</p>
+            <input type="password" id="adminPassInput" class="input-base text-center mb-4" placeholder="••••">
+            <div class="modal-actions">
+                <button id="cancelLogin" class="btn btn-outline w-full">Cancelar</button>
+                <button id="confirmLogin" class="btn btn-primary w-full">Entrar</button>
             </div>
-            <textarea id="pDesc" placeholder="Descripción" style="grid-column: span 2;" class="glass-input"></textarea>
-            <button type="submit" class="btn btn-primary" style="grid-column: span 2;">Guardar Producto</button>
-        </form>
-        <div id="adminProductGrid"></div>
+        </div>
     </div>
+    <div id="modalOverlayLogin" class="overlay-modal"></div>
 
-    <main class="main-content">
-        <section id="home" class="hero">
-            <div class="container text-center">
-                <h1>Elegancia Atemporal</h1>
-                <p>Descubre una selección curada de piezas exclusivas diseñadas para aquellos que buscan lo extraordinario en cada detalle.</p>
-                <div class="hero-btns">
-                    <a href="#catalog" class="btn btn-primary">Explorar Colección</a>
-                </div>
+    <!-- Admin Panel -->
+    <div id="adminPanel" class="modal admin-modal">
+        <div class="modal-content glass admin-content">
+            <div class="admin-header">
+                <h2>Gestión de Catálogo</h2>
+                <button id="closeAdminBtn" class="icon-btn">✕</button>
             </div>
-        </section>
+            
+            <div class="admin-grid">
+                <!-- Add Product Form -->
+                <div class="admin-form-section">
+                    <h3>Nuevo Producto</h3>
+                    <form id="productForm" class="add-product-form">
+                        <input type="text" id="pName" placeholder="Nombre de Producto" required class="input-base">
+                        <input type="text" id="pRef" placeholder="Código / Referencia" required class="input-base">
+                        <input type="number" id="pPrice" placeholder="Precio ($)" required class="input-base" step="any">
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="pDept" placeholder="Departamento" required class="input-base">
+                            <input type="text" id="pCategory" placeholder="Categoría" required class="input-base">
+                        </div>
+                        
+                        <div class="file-upload">
+                            <label>Fotografía del Producto</label>
+                            <input type="file" id="pFile" accept="image/*" class="input-base" required>
+                            <small style="color: var(--gray-400); font-size: 0.8rem;">La imagen se optimizará automáticamente</small>
+                        </div>
 
-        <section id="catalog" class="catalog-section">
-            <div class="container">
-                <div class="section-title">
-                    <p class="product-tag">Novedades</p>
-                    <h2>Nuestro Catálogo</h2>
+                        <textarea id="pDesc" placeholder="Descripción (Opcional)" class="input-base resize-none" rows="2"></textarea>
+                        
+                        <div id="adminStatus" class="admin-status"></div>
+                        <button type="submit" id="saveProductBtn" class="btn btn-primary w-full">Guardar Producto</button>
+                    </form>
                 </div>
-
-                <div class="product-grid" id="productGrid">
-                    <!-- Products will be injected here by JS -->
+                
+                <!-- Product List for Admin -->
+                <div class="admin-list-section">
+                    <h3>Productos Activos</h3>
+                    <div id="adminProductGrid" class="admin-products-list">
+                        <!-- Listed via JS -->
+                    </div>
                 </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="glass" style="margin-top: 5rem; padding: 4rem 0;">
-        <div class="container">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 2rem;">
-                <div>
-                    <a href="#" class="logo">
-                        <img src="assets/logo_empresa.png" alt="Brilho Joias" class="logo-img">
-                    </a>
-                    <p style="color: var(--text-muted); max-width: 300px; margin-top: 1rem;">Excelencia y diseño en cada pieza. La referencia del lujo contemporáneo.</p>
-                </div>
-                <div>
-                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Enlaces</h4>
-                    <ul style="list-style: none; color: var(--text-muted);">
-                        <li>Soporte</li>
-                        <li>Envíos</li>
-                        <li>Garantía</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Contacto</h4>
-                    <p style="color: var(--text-muted);">info@luxecollection.com</p>
-                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">+1 234 567 890</p>
-                    <!-- v2.0 Login System -->
-                    <button id="adminLoginBtn" class="btn" style="background: var(--primary); color: var(--bg-dark); font-weight: bold; font-size: 0.8rem; border: none; padding: 10px 20px; border-radius: 50px; cursor: pointer;">Acceso Admin ⭐</button>
-                </div>
-            </div>
-            <div style="border-top: 1px solid var(--glass-border); margin-top: 3rem; padding-top: 2rem; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
-                <p>&copy; 2026 LUXE Premium Catalog. Todos los derechos reservados.</p>
             </div>
         </div>
-    </footer>
+    </div>
+    <div id="modalOverlayAdmin" class="overlay-modal"></div>
 
     <script src="app.js"></script>
 </body>
