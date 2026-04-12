@@ -90,6 +90,12 @@ function initEvents() {
     els.closeCartBtn.addEventListener('click', () => toggleCart(false));
     els.cartOverlay.addEventListener('click', () => toggleCart(false));
 
+    // Download Ticket Button
+    document.getElementById('downloadTicketBtn').addEventListener('click', () => {
+        if (cart.length === 0) return alert('El carrito está vacío. Agrega productos primero.');
+        generateTicketPDF();
+    });
+
     // Checkout Modal
     els.checkoutBtn.addEventListener('click', () => {
         if (cart.length === 0) return alert('El carrito está vacío');
@@ -523,3 +529,92 @@ function formatPrice(p) {
 function parsePrice(p) { 
     return parseFloat(String(p).replace(/[$\s]/g, '').replace(',', '.')) || 0; 
 }
+
+// -------- TICKET PDF GENERATOR --------
+function generateTicketPDF() {
+    const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
+    const fecha = new Date().toLocaleString('es-VE', { dateStyle: 'long', timeStyle: 'short' });
+    const numTicket = 'TKT-' + Date.now().toString().slice(-6);
+
+    const rows = cart.map(i => `
+        <tr>
+            <td>${i.name}</td>
+            <td style="text-align:center">${i.ref || '-'}</td>
+            <td style="text-align:center">${i.quantity}</td>
+            <td style="text-align:right">$${formatPrice(parsePrice(i.price))}</td>
+            <td style="text-align:right">$${formatPrice(parsePrice(i.price) * i.quantity)}</td>
+        </tr>
+    `).join('');
+
+    const ticketHTML = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Ticket de Pedido - BRILHO JOYAS</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Inter', sans-serif; background: #fff; color: #222; padding: 40px; max-width: 680px; margin: 0 auto; }
+            .header { text-align: center; border-bottom: 3px solid #d4af37; padding-bottom: 20px; margin-bottom: 24px; }
+            .header h1 { font-size: 2rem; letter-spacing: 4px; color: #1a1a2e; }
+            .header .tagline { color: #888; font-size: 0.85rem; letter-spacing: 2px; margin-top: 4px; }
+            .ticket-meta { display: flex; justify-content: space-between; background: #f8f8f8; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 0.85rem; }
+            .ticket-meta span { color: #555; }
+            .ticket-meta strong { color: #222; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            thead tr { background: #1a1a2e; color: #d4af37; }
+            thead th { padding: 10px 12px; text-align: left; font-size: 0.85rem; font-weight: 600; }
+            tbody tr:nth-child(even) { background: #f9f9f9; }
+            tbody td { padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; }
+            .total-box { text-align: right; padding: 14px 0; border-top: 2px solid #d4af37; }
+            .total-box span { font-size: 1.4rem; font-weight: 700; color: #1a1a2e; }
+            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #aaa; font-size: 0.78rem; }
+            .gold { color: #d4af37; }
+            @media print {
+                body { padding: 20px; }
+                button { display: none !important; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>BRILHO <span class="gold">JOYAS</span></h1>
+            <div class="tagline">Joyas • Silver • Steel &mdash; Catálogo Online</div>
+        </div>
+        <div class="ticket-meta">
+            <div><span>Ticket N°: </span><strong>${numTicket}</strong></div>
+            <div><span>Fecha: </span><strong>${fecha}</strong></div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th style="text-align:center">Ref.</th>
+                    <th style="text-align:center">Cant.</th>
+                    <th style="text-align:right">P. Unit.</th>
+                    <th style="text-align:right">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="total-box">
+            TOTAL A PAGAR: <span>$${formatPrice(total)}</span>
+        </div>
+        <div class="footer">
+            Este ticket es un comprobante de su selección. El pedido se confirmará vía WhatsApp.<br>
+            Gracias por elegir <strong>BRILHO JOYAS</strong> ✨
+        </div>
+    </body>
+    </html>`;
+
+    const printWin = window.open('', '_blank', 'width=750,height=650');
+    printWin.document.write(ticketHTML);
+    printWin.document.close();
+    printWin.focus();
+    // Delay slightly so fonts load before print dialog
+    setTimeout(() => {
+        printWin.print();
+    }, 600);
+}
+
