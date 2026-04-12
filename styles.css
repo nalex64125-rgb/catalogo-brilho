@@ -243,27 +243,49 @@ h1, h2, h3, h4 {
 
 /* Hero Section */
 .hero {
+  position: relative;
   width: 100%;
   margin-top: 70px; /* Space for sticky navbar */
   display: flex;
-  flex-direction: column;
+  overflow: hidden;
   align-items: center;
-  background: var(--bg-darker); /* Solid dark matching the theme */
+  justify-content: center;
+  background: var(--bg-darker);
 }
 .hero-image {
   width: 100%;
-  max-height: 480px;
-  object-fit: contain; /* Ensures the whole banner is always exactly visible and not cropped horizontally */
-  background: #ffffff; /* White background behind image if it doesn't span fully */
+  height: auto;
+  min-height: 250px;
+  object-fit: cover;
+  display: block;
 }
 .hero-content {
-  width: 100%;
-  padding: 3rem 1.5rem;
+  position: absolute;
+  width: 90%;
+  max-width: 600px;
+  padding: 2.5rem;
   text-align: center;
-  background: var(--bg-dark); /* Color oscuro que separa el hero de la galería */
+  background: rgba(10, 10, 10, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.7);
 }
-.hero-content h1 { font-size: 2.8rem; margin-bottom: 1rem; color: var(--text-main); }
-.hero-content p { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
+.hero-content h1 { 
+  font-size: 2.8rem; 
+  margin-bottom: 1rem; 
+  color: #d4af37; /* Dorado */
+  text-shadow: 0 4px 6px rgba(0,0,0,0.8);
+}
+.hero-content p { 
+  font-size: 1.1rem; 
+  color: #f6ebd0; /* Dorado claro */
+  line-height: 1.5;
+  max-width: 600px; 
+  margin: 0 auto 2rem; 
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
 
 /* Categories Ribbon & Dropdowns */
 .categories-bar {
@@ -446,7 +468,9 @@ h1, h2, h3, h4 {
 @media (max-width: 768px) {
   .desktop-only { display: none; }
   .mobile-only { display: flex; }
-  .hero-content h1 { font-size: 2.5rem; }
+  .hero-content { padding: 1.5rem; width: 95%; }
+  .hero-content h1 { font-size: 2rem; }
+  .hero-content p { font-size: 0.95rem; margin-bottom: 1.5rem; }
   .admin-grid { grid-template-columns: 1fr; }
   .admin-form-section { border-right: none; border-bottom: 1px solid var(--glass-border); }
 }
