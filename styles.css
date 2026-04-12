@@ -241,17 +241,26 @@ h1, h2, h3, h4 {
 .overlay.active, .overlay-modal.active { display: block; }
 .overlay-modal { z-index: 3000; }
 
-/* Hero */
+/* Hero Section */
 .hero {
-  min-height: 80vh;
-  display: flex; align-items: center; justify-content: center;
-  text-align: center;
-  background: linear-gradient(rgba(5,5,5,0.6), rgba(5,5,5,0.9)), url('assets/hero_bg.png') center/cover;
-  padding: 0 1.5rem;
-  margin-top: 70px;
+  width: 100%;
+  margin-top: 70px; /* Space for sticky navbar */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-darker); /* Solid dark matching the theme */
 }
-.hero-content h1 { font-size: 3.5rem; margin-bottom: 1rem; color: var(--text-main); }
-.hero-content p { font-size: 1.2rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
+.hero-image {
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain; /* Ensures the whole banner is always exactly visible and not cropped horizontally */
+  background: #ffffff; /* White background behind image if it doesn't span fully */
+}
+.hero-action-bar {
+  width: 100%;
+  padding: 1.5rem 0 2rem;
+  text-align: center;
+}
 
 /* Categories Ribbon & Dropdowns */
 .categories-bar {
@@ -277,7 +286,7 @@ h1, h2, h3, h4 {
   cursor: pointer;
   transition: var(--transition);
 }
-.cat-btn:hover, .cat-btn.active, .cat-dropdown:hover .cat-btn {
+.cat-btn:hover, .cat-btn.active {
   background: var(--primary);
   color: var(--bg-darker);
   border-color: var(--primary);
@@ -302,8 +311,13 @@ h1, h2, h3, h4 {
   z-index: 1000;
   overflow: hidden;
 }
-.cat-dropdown:hover .dropdown-menu {
+.cat-dropdown.open .cat-btn, .cat-dropdown.open .dropdown-menu {
   display: flex;
+}
+.cat-dropdown.open .cat-btn {
+  background: var(--primary);
+  color: var(--bg-darker);
+  border-color: var(--primary);
 }
 .dropdown-item {
   padding: 0.8rem 1rem;
