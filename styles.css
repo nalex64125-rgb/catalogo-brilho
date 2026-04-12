@@ -256,11 +256,14 @@ h1, h2, h3, h4 {
   object-fit: contain; /* Ensures the whole banner is always exactly visible and not cropped horizontally */
   background: #ffffff; /* White background behind image if it doesn't span fully */
 }
-.hero-action-bar {
+.hero-content {
   width: 100%;
-  padding: 1.5rem 0 2rem;
+  padding: 3rem 1.5rem;
   text-align: center;
+  background: var(--bg-dark); /* Color oscuro que separa el hero de la galería */
 }
+.hero-content h1 { font-size: 2.8rem; margin-bottom: 1rem; color: var(--text-main); }
+.hero-content p { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
 
 /* Categories Ribbon & Dropdowns */
 .categories-bar {
