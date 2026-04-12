@@ -220,11 +220,9 @@
 
     <script>
         // Anti-Cache system: forces the browser to always download the latest app.js version when online
-        if (window.location.protocol === 'file:') {
-            document.write('<script src="app.js"><\\/script>');
-        } else {
-            document.write('<script src="app.js?v=' + Date.now() + '"><\\/script>');
-        }
+        const script = document.createElement('script');
+        script.src = window.location.protocol === 'file:' ? 'app.js' : 'app.js?v=' + Date.now();
+        document.body.appendChild(script);
     </script>
 </body>
 </html>
