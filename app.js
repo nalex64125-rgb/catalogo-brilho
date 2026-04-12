@@ -59,12 +59,18 @@ const els = {
 };
 
 // -------- INITIALIZATION --------
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
     initEvents();
     loadProducts();
     // Auto-refresh products every 45s
     setInterval(loadProducts, 45000);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 // -------- EVENT LISTENERS --------
 function initEvents() {
@@ -105,6 +111,13 @@ function initEvents() {
     els.closeAdminBtn.addEventListener('click', () => toggleModal(els.adminPanel, els.modalOverlayAdmin, false));
     els.modalOverlayAdmin.addEventListener('click', () => toggleModal(els.adminPanel, els.modalOverlayAdmin, false));
     els.productForm.addEventListener('submit', handleAddProduct);
+
+    // Global click for closing dropdowns
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.cat-dropdown')) {
+            document.querySelectorAll('.cat-dropdown').forEach(el => el.classList.remove('open'));
+        }
+    });
 }
 
 // -------- TOGGLE UTILS --------
@@ -166,10 +179,12 @@ function renderCategories() {
         const dEnc = encodeURIComponent(d);
         
         if (categories.length > 0) {
+            const dropdownId = 'dropdown-' + d.replace(/\s+/g, '-');
             ribbonHtml += `
-            <div class="cat-dropdown">
-                <button class="cat-btn ${currentDept === d ? 'active' : ''}" onclick="filterBy('${dEnc}', 'all')">${d} ▾</button>
+            <div class="cat-dropdown" id="${dropdownId}">
+                <button class="cat-btn ${currentDept === d ? 'active' : ''}" onclick="toggleDropdown('${dropdownId}', event)">${d} ▾</button>
                 <div class="dropdown-menu">
+                    <div class="dropdown-item ${currentCat === 'all' && currentDept === d ? 'active' : ''}" onclick="filterBy('${dEnc}', 'all')">Ver todo lo de ${d}</div>
                     ${categories.map(c => `<div class="dropdown-item ${currentCat === c ? 'active' : ''}" onclick="filterBy('${dEnc}', '${encodeURIComponent(c)}')">${c}</div>`).join('')}
                 </div>
             </div>`;
@@ -196,6 +211,14 @@ function renderCategories() {
 
     els.categoryRibbon.innerHTML = ribbonHtml;
     els.mobileCategories.innerHTML = mobileHtml;
+}
+
+window.toggleDropdown = function(id, e) {
+    if(e) { e.stopPropagation(); e.preventDefault(); }
+    document.querySelectorAll('.cat-dropdown').forEach(el => {
+        if(el.id !== id) el.classList.remove('open');
+    });
+    document.getElementById(id).classList.toggle('open');
 }
 
 window.toggleMobileSubmenu = function(btn) {
@@ -233,7 +256,7 @@ function renderProducts(items) {
     
     els.productGrid.innerHTML = items.map(p => `
         <div class="product-card">
-            <img src="${p.img || 'assets/logo_empresa.png'}" alt="${p.name}" class="product-img" loading="lazy" onerror="this.src='assets/logo_empresa.png'">
+            <img src="${p.img || 'assets/logo_empresa.png'}" alt="${p.name}" class="product-img" loading="lazy" style="cursor: zoom-in;" onclick="openImageZoom('${p.img || 'assets/logo_empresa.png'}')" onerror="this.src='assets/logo_empresa.png'">
             <div class="product-info">
                 <span class="product-tag">${p.dept || 'Genérico'} ${p.cat ? '| '+p.cat : ''}</span>
                 <h3 class="product-title">${p.name}</h3>
@@ -347,6 +370,20 @@ function handleOrderSubmit(e) {
     updateCartUI();
     els.checkoutForm.reset();
     toggleModal(els.checkoutModal, els.modalOverlayCheckout, false);
+}
+
+// -------- IMAGE ZOOM --------
+window.openImageZoom = function(src) {
+    document.getElementById('zoomedImage').src = src;
+    document.getElementById('imageZoomModal').classList.add('open');
+    document.getElementById('overlayImageZoom').classList.add('active');
+}
+
+window.toggleImageZoom = function(show) {
+    if (!show) {
+        document.getElementById('imageZoomModal').classList.remove('open');
+        document.getElementById('overlayImageZoom').classList.remove('active');
+    }
 }
 
 // -------- ADMIN FEATURES --------
