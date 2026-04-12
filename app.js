@@ -346,14 +346,18 @@ function handleOrderSubmit(e) {
     e.preventDefault();
     
     const name = document.getElementById('custName').value.trim();
+    const idNum = document.getElementById('custId').value.trim();
     const phone = document.getElementById('custPhone').value.trim();
     const addr = document.getElementById('custAddr').value.trim();
+    const transport = document.getElementById('custTransport').value.trim();
     const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
     
     let msg = `*NUEVO PEDIDO - CATÁLOGO PREMIUM*\n\n`;
     msg += `*Cliente:* ${name}\n`;
+    msg += `*Cédula/RIF:* ${idNum}\n`;
     msg += `*Teléfono:* ${phone}\n`;
-    msg += `*Dirección:* ${addr}\n\n`;
+    msg += `*Dirección:* ${addr}\n`;
+    msg += `*Agencia de Envío:* ${transport}\n\n`;
     msg += `*Resumen de compra:*\n`;
     cart.forEach(i => {
         msg += `- ${i.name} (Ref: ${i.ref || 'N/A'}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
