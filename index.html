@@ -218,6 +218,13 @@
     </div>
     <div id="overlayImageZoom" class="overlay-modal" onclick="toggleImageZoom(false)" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);"></div>
 
-    <script src="app.js"></script>
+    <script>
+        // Anti-Cache system: forces the browser to always download the latest app.js version when online
+        if (window.location.protocol === 'file:') {
+            document.write('<script src="app.js"><\\/script>');
+        } else {
+            document.write('<script src="app.js?v=' + Date.now() + '"><\\/script>');
+        }
+    </script>
 </body>
 </html>
