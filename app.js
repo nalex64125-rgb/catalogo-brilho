@@ -1,7 +1,7 @@
 // -------- CONFIGURATION --------
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx20ZnNP98AaZageJqz_oOCNtBjXZg7OzouKtQNKAQeP-hk0k-hmTLC758hY2cCNyor/exec";
 const ADMIN_PASS = "1234";
-const BUSINESS_PHONE = "584120000000"; // format without +
+const BUSINESS_PHONE = "584241729217"; // format without +
 
 // -------- STATE --------
 let products = [];
