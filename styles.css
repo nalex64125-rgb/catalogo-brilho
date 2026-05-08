@@ -145,7 +145,7 @@ h1, h2, h3, h4 {
   align-items: center;
   justify-content: space-between;
 }
-.logo-img { height: 48px; object-fit: contain; filter: invert(1); }
+.logo-img { height: 48px; object-fit: contain; }
 .desktop-nav { display: flex; gap: 2rem; }
 .nav-link {
   color: var(--text-muted);
