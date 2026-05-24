@@ -12,10 +12,10 @@
   --gray-100: #f3f4f6;
   --gray-50:  #f9fafb;
 
-  --bg-dark: #121212;
-  --bg-darker: #050505;
-  --surface: #1e1e1e;
-  --surface-hover: #2a2a2a;
+  --bg-dark: #242436;
+  --bg-darker: #1a1a2e;
+  --surface: #2d2d42;
+  --surface-hover: #383852;
   
   --primary: #94a3b8; /* Slate gray */
   --primary-hover: #cbd5e1;
@@ -269,7 +269,7 @@ h1, h2, h3, h4 {
   justify-content: center;
   align-items: center;
   text-align: center;
-  background: rgba(5, 5, 5, 0.6); /* Lienzo oscuro sobre TODA la foto */
+  background: rgba(5, 5, 5, 0.45); /* Lienzo oscuro sobre TODA la foto */
   padding: 2rem;
 }
 .hero-content h1 { 
