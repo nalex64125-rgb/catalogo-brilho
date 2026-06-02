@@ -1,13 +1,15 @@
 // -------- CONFIGURATION --------
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx20ZnNP98AaZageJqz_oOCNtBjXZg7OzouKtQNKAQeP-hk0k-hmTLC758hY2cCNyor/exec";
-const ADMIN_PASS = "1234";
-const BUSINESS_PHONE = "584241729217"; // format without +
+let ADMIN_PASS = localStorage.getItem('brilho_admin_pass') || "1234";
+const BUSINESS_PHONE = "+58-4149262763"; // format without +
+const ADMIN_WHATSAPP = "584149262763"; // Tu WhatsApp de administrador (sin + ni espacios)
 
 // -------- STATE --------
 let products = [];
-let cart = [];
+let cart = JSON.parse(localStorage.getItem('brilho_cart') || '[]'); // ✅ Carrito persistente
 let currentDept = 'all';
 let currentCat = 'all';
+let currentSearch = '';
 let isFirstLoad = true;
 
 // -------- DOM ELEMENTS --------
@@ -56,6 +58,9 @@ const els = {
     productForm: document.getElementById('productForm'),
     adminStatus: document.getElementById('adminStatus'),
     saveProductBtn: document.getElementById('saveProductBtn'),
+    
+    // Search
+    searchInput: document.getElementById('searchInput'),
 };
 
 // -------- INITIALIZATION --------
@@ -105,8 +110,69 @@ function initEvents() {
             transport: document.getElementById('custTransport').value.trim(),
             addr: document.getElementById('custAddr').value.trim()
         };
-        generateTicketPDF(clientData);
+        generateTicketPDF(clientData, 'download');
     });
+
+    // Email Ticket Button
+    const emailTicketBtn = document.getElementById('emailTicketBtn');
+    if (emailTicketBtn) {
+        emailTicketBtn.addEventListener('click', () => {
+            const form = document.getElementById('checkoutForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const email = document.getElementById('custEmail').value.trim();
+            if (!email) {
+                alert('Por favor ingrese su correo electrónico para enviar el ticket.');
+                document.getElementById('custEmail').focus();
+                return;
+            }
+
+            const clientData = {
+                name: document.getElementById('custName').value.trim(),
+                idNum: document.getElementById('custId').value.trim(),
+                phone: document.getElementById('custPhone').value.trim(),
+                transport: document.getElementById('custTransport').value.trim(),
+                addr: document.getElementById('custAddr').value.trim()
+            };
+
+            generateTicketPDF(clientData, 'email', email);
+        });
+    }
+
+    // Search Bar event
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const searchInputEl = document.getElementById('searchInput');
+            currentSearch = searchInputEl ? searchInputEl.value : '';
+            applyFilters();
+        });
+    }
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            if (e.target.value.trim() === '') {
+                currentSearch = '';
+                applyFilters();
+            }
+        });
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                currentSearch = e.target.value;
+                applyFilters();
+            }
+        });
+    }
+    
+    if (document.getElementById('searchFilter')) {
+        document.getElementById('searchFilter').addEventListener('change', (e) => {
+            filterBy(e.target.value, 'all');
+        });
+    }
 
     // Checkout Modal
     els.checkoutBtn.addEventListener('click', () => {
@@ -125,9 +191,43 @@ function initEvents() {
     els.confirmLogin.addEventListener('click', handleLogin);
     els.adminPassInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
 
+    const recoverPassBtn = document.getElementById('recoverPassBtn');
+    if (recoverPassBtn) {
+        recoverPassBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const email = prompt("Por favor, ingresa tu correo electrónico para recibir la contraseña:");
+            if (email && email.trim() !== "") {
+                const body = `Hola,\n\nTu contraseña de administrador para el Catálogo Premium es: ${ADMIN_PASS}\n\nGuarda este correo en un lugar seguro.`;
+                window.location.href = `mailto:${email.trim()}?subject=${encodeURIComponent('Recuperación de Contraseña - Admin')}&body=${encodeURIComponent(body)}`;
+                toggleModal(els.loginModal, els.modalOverlayLogin, false);
+            }
+        });
+    }
+
     // Admin Panel
     els.closeAdminBtn.addEventListener('click', () => toggleModal(els.adminPanel, els.modalOverlayAdmin, false));
     els.modalOverlayAdmin.addEventListener('click', () => toggleModal(els.adminPanel, els.modalOverlayAdmin, false));
+
+    const changePassBtn = document.getElementById('changePassBtn');
+    if (changePassBtn) {
+        changePassBtn.addEventListener('click', () => {
+            const current = prompt("Ingresa tu contraseña actual:");
+            if (current !== null) {
+                if (current === ADMIN_PASS) {
+                    const newPass = prompt("Ingresa la nueva contraseña:");
+                    if (newPass && newPass.trim() !== "") {
+                        ADMIN_PASS = newPass.trim();
+                        localStorage.setItem('brilho_admin_pass', ADMIN_PASS);
+                        alert("Contraseña actualizada con éxito.");
+                    } else {
+                        alert("La contraseña no puede estar vacía.");
+                    }
+                } else {
+                    alert("Contraseña actual incorrecta.");
+                }
+            }
+        });
+    }
     els.productForm.addEventListener('submit', handleAddProduct);
 
     // Global click for closing dropdowns
@@ -136,6 +236,14 @@ function initEvents() {
             document.querySelectorAll('.cat-dropdown').forEach(el => el.classList.remove('open'));
         }
     });
+
+    // Admin Search
+    const adminSearchInput = document.getElementById('adminSearchInput');
+    if (adminSearchInput) {
+        adminSearchInput.addEventListener('input', () => {
+            renderAdminList();
+        });
+    }
 }
 
 // -------- TOGGLE UTILS --------
@@ -229,6 +337,20 @@ function renderCategories() {
 
     els.categoryRibbon.innerHTML = ribbonHtml;
     els.mobileCategories.innerHTML = mobileHtml;
+    
+    // Update Search Filter Dropdown
+    const searchFilter = document.getElementById('searchFilter');
+    if (searchFilter) {
+        let optionsHtml = `<option value="all">Todas las categorías</option>`;
+        depts.forEach(d => {
+            optionsHtml += `<option value="${encodeURIComponent(d)}">${d}</option>`;
+        });
+        searchFilter.innerHTML = optionsHtml;
+        
+        if (currentDept !== 'all') {
+            searchFilter.value = encodeURIComponent(currentDept);
+        }
+    }
 }
 
 window.toggleDropdown = function(id, e) {
@@ -249,18 +371,29 @@ window.filterBy = function(deptEnc, catEnc) {
     if(window.event && window.event.type === 'click') window.event.preventDefault();
     
     const dept = deptEnc === 'all' ? 'all' : decodeURIComponent(deptEnc);
-    const cat = catEnc === 'all' ? 'all' : decodeURIComponent(catEnc);
+    const cat = (catEnc === 'all' || catEnc === undefined) ? 'all' : decodeURIComponent(catEnc);
     
     currentDept = dept;
     currentCat = cat;
     renderCategories(); // update active state on buttons
 
+    applyFilters();
+}
+
+window.applyFilters = function() {
     let filtered = products;
-    if (dept !== 'all') {
-        filtered = filtered.filter(p => p.dept === dept);
+    if (currentDept !== 'all') {
+        filtered = filtered.filter(p => p.dept === currentDept);
     }
-    if (cat !== 'all') {
-        filtered = filtered.filter(p => p.cat === cat);
+    if (currentCat !== 'all') {
+        filtered = filtered.filter(p => p.cat === currentCat);
+    }
+    if (currentSearch.trim() !== '') {
+        const term = currentSearch.toLowerCase();
+        filtered = filtered.filter(p => 
+            (p.name && String(p.name).toLowerCase().includes(term)) || 
+            (p.ref && String(p.ref).toLowerCase().includes(term))
+        );
     }
     
     renderProducts(filtered);
@@ -272,24 +405,52 @@ function renderProducts(items) {
         return;
     }
     
-    els.productGrid.innerHTML = items.map(p => `
-        <div class="product-card">
-            <img src="${p.img || 'assets/logo_empresa.png'}" alt="${p.name}" class="product-img" loading="lazy" style="cursor: zoom-in;" onclick="openImageZoom('${p.img || 'assets/logo_empresa.png'}')" onerror="this.src='assets/logo_empresa.png'">
+    els.productGrid.innerHTML = items.map(p => {
+        // ✅ Badge de stock
+        const stock = parseInt(p.stock);
+        let stockBadge = '';
+        if (!isNaN(stock)) {
+            if (stock === 0) {
+                stockBadge = `<span style="position:absolute; top:8px; right:8px; background:#e53e3e; color:white; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:20px;">Agotado</span>`;
+            } else if (stock <= 3) {
+                stockBadge = `<span style="position:absolute; top:8px; right:8px; background:#d97706; color:white; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:20px;">Últimas ${stock}</span>`;
+            }
+        }
+        const isOutOfStock = !isNaN(stock) && stock === 0;
+        return `
+        <div class="product-card" style="position:relative;">
+            ${stockBadge}
+            <img src="${p.img || 'assets/logo_empresa.png'}" alt="${p.name}" class="product-img" loading="lazy" style="cursor: zoom-in; ${isOutOfStock ? 'opacity:0.5;' : ''}" onclick="openImageZoom('${p.img || 'assets/logo_empresa.png'}')" onerror="this.src='assets/logo_empresa.png'">
             <div class="product-info">
                 <span class="product-tag">${p.dept || 'Genérico'} ${p.cat ? '| '+p.cat : ''}</span>
                 <h3 class="product-title">${p.name}</h3>
                 <p class="product-desc">Ref: ${p.ref || 'N/A'}</p>
                 <div class="product-footer">
                     <span class="product-price">$${formatPrice(p.price)}</span>
-                    <button onclick="addToCart('${p.id}')" class="btn btn-primary" style="padding: 0.5rem 1rem;">Añadir</button>
+                    <button onclick="addToCart('${p.id}')" class="btn btn-primary" style="padding: 0.5rem 1rem;" ${isOutOfStock ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>Añadir</button>
                 </div>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 function renderAdminList() {
-    els.adminProductGrid.innerHTML = products.map(p => `
+    let list = products;
+    const adminSearchInput = document.getElementById('adminSearchInput');
+    if (adminSearchInput && adminSearchInput.value.trim() !== '') {
+        const term = adminSearchInput.value.trim().toLowerCase();
+        list = list.filter(p => 
+            (p.name && String(p.name).toLowerCase().includes(term)) || 
+            (p.ref && String(p.ref).toLowerCase().includes(term))
+        );
+    }
+
+    if (list.length === 0) {
+        els.adminProductGrid.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--gray-400);">No se encontraron productos.</div>';
+        return;
+    }
+
+    els.adminProductGrid.innerHTML = list.map(p => `
         <div class="admin-prod-item">
             <div style="flex-grow:1; display:flex; align-items:center; gap:10px;">
                 <img src="${p.img}" style="width:40px; height:40px; object-fit:cover; border-radius:4px; background:#000;">
@@ -334,6 +495,9 @@ function updateCartUI() {
     const totalItems = cart.reduce((acc, i) => acc + i.quantity, 0);
     els.cartCount.innerText = totalItems;
     
+    // ✅ Guardar carrito en localStorage automáticamente
+    localStorage.setItem('brilho_cart', JSON.stringify(cart));
+    
     if (cart.length === 0) {
         els.cartItems.innerHTML = '<div style="text-align:center; color:var(--gray-400); margin-top: 2rem;">Tu carrito está vacío</div>';
         els.cartTotal.innerText = '$0';
@@ -368,27 +532,56 @@ function handleOrderSubmit(e) {
     const phone = document.getElementById('custPhone').value.trim();
     const addr = document.getElementById('custAddr').value.trim();
     const transport = document.getElementById('custTransport').value.trim();
+    const email = document.getElementById('custEmail') ? document.getElementById('custEmail').value.trim() : '';
     const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
+    const numTicket = 'PED-' + Date.now().toString().slice(-6);
     
-    let msg = `*NUEVO PEDIDO - CATÁLOGO PREMIUM*\n\n`;
+    // Build order lines
+    let itemLines = '';
+    cart.forEach(i => {
+        itemLines += `- ${i.name} (Ref: ${i.ref || 'N/A'}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
+    });
+
+    // 1️⃣ WhatsApp al cliente/pedido principal
+    let msg = `*NUEVO PEDIDO - CATÁLOGO PREMIUM*\n*N° ${numTicket}*\n\n`;
     msg += `*Cliente:* ${name}\n`;
     msg += `*Cédula/RIF:* ${idNum}\n`;
     msg += `*Teléfono:* ${phone}\n`;
     msg += `*Dirección:* ${addr}\n`;
     msg += `*Agencia de Envío:* ${transport}\n\n`;
-    msg += `*Resumen de compra:*\n`;
-    cart.forEach(i => {
-        msg += `- ${i.name} (Ref: ${i.ref || 'N/A'}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
-    });
+    msg += `*Resumen de compra:*\n${itemLines}`;
     msg += `\n*TOTAL A PAGAR:* $${formatPrice(total)}`;
 
     const encodedMsg = encodeURIComponent(msg);
-    const waLink = `https://wa.me/${BUSINESS_PHONE}?text=${encodedMsg}`;
-    
-    window.open(waLink, '_blank');
-    
+    window.open(`https://wa.me/${BUSINESS_PHONE}?text=${encodedMsg}`, '_blank');
+
+    // 2️⃣ ✅ NOTIFICACIÓN AUTOMÁTICA AL ADMINISTRADOR vía WhatsApp
+    setTimeout(() => {
+        let adminMsg = `🔔 *NUEVO PEDIDO RECIBIDO*\n*N° ${numTicket}*\n\n`;
+        adminMsg += `👤 *Cliente:* ${name}\n`;
+        adminMsg += `📱 *Teléfono:* ${phone}\n`;
+        adminMsg += `📦 *Productos:*\n${itemLines}`;
+        adminMsg += `\n💰 *TOTAL:* $${formatPrice(total)}`;
+        const adminEncoded = encodeURIComponent(adminMsg);
+        window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${adminEncoded}`, '_blank');
+    }, 1500);
+
+    // 3️⃣ ✅ CORREO AUTOMÁTICO AL CLIENTE via EmailJS (si configuraste EmailJS)
+    if (email && typeof emailjs !== 'undefined') {
+        emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
+            to_email: email,
+            to_name: name,
+            order_number: numTicket,
+            order_items: itemLines,
+            order_total: `$${formatPrice(total)}`,
+            client_phone: phone,
+            client_address: addr,
+        }).catch(err => console.warn('EmailJS:', err));
+    }
+
     // Clear state
     cart = [];
+    localStorage.removeItem('brilho_cart');
     updateCartUI();
     els.checkoutForm.reset();
     toggleModal(els.checkoutModal, els.modalOverlayCheckout, false);
@@ -482,6 +675,7 @@ async function handleAddProduct(e) {
             name: document.getElementById('pName').value.trim(),
             ref: document.getElementById('pRef').value.trim(),
             price: document.getElementById('pPrice').value,
+            stock: document.getElementById('pStock') ? document.getElementById('pStock').value : '',
             dept: document.getElementById('pDept').value.trim(),
             cat: document.getElementById('pCategory').value.trim(),
             desc: document.getElementById('pDesc').value.trim(),
@@ -543,106 +737,97 @@ function parsePrice(p) {
 }
 
 // -------- TICKET PDF GENERATOR --------
-function generateTicketPDF(client = {}) {
+function generateTicketPDF(client = {}, action = 'download', emailAddress = '') {
     const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
-    const fecha = new Date().toLocaleString('es-VE', { dateStyle: 'long', timeStyle: 'short' });
+    const now = new Date();
+    const fecha = now.toLocaleDateString() + ' ' + now.toLocaleTimeString(); // Fallback-safe date formatting
     const numTicket = 'TKT-' + Date.now().toString().slice(-6);
 
     const clientRows = client.name ? `
-        <div class="client-box">
-            <h3>Datos del Cliente</h3>
-            <table class="client-table">
-                <tr><td><strong>Nombre:</strong></td><td>${client.name}</td></tr>
-                <tr><td><strong>Cédula/RIF:</strong></td><td>${client.idNum}</td></tr>
-                <tr><td><strong>Teléfono:</strong></td><td>${client.phone}</td></tr>
-                <tr><td><strong>Agencia Envío:</strong></td><td>${client.transport}</td></tr>
-                <tr><td><strong>Dirección:</strong></td><td>${client.addr}</td></tr>
+        <div style="background: #fffbf0; border: 1px solid #d4af37; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
+            <h3 style="font-size: 0.9rem; color: #d4af37; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Datos del Cliente</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
+                <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Nombre:</strong></td><td style="padding: 4px 8px;">${client.name}</td></tr>
+                <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Cédula/RIF:</strong></td><td style="padding: 4px 8px;">${client.idNum}</td></tr>
+                <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Teléfono:</strong></td><td style="padding: 4px 8px;">${client.phone}</td></tr>
+                <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Agencia Envío:</strong></td><td style="padding: 4px 8px;">${client.transport}</td></tr>
+                <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Dirección:</strong></td><td style="padding: 4px 8px;">${client.addr}</td></tr>
             </table>
         </div>
     ` : '';
 
-    const rows = cart.map(i => `
-        <tr>
-            <td>${i.name}</td>
-            <td style="text-align:center">${i.ref || '-'}</td>
-            <td style="text-align:center">${i.quantity}</td>
-            <td style="text-align:right">$${formatPrice(parsePrice(i.price))}</td>
-            <td style="text-align:right">$${formatPrice(parsePrice(i.price) * i.quantity)}</td>
+    const rows = cart.map((i, index) => `
+        <tr style="${index % 2 !== 0 ? 'background: #f9f9f9;' : ''}">
+            <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee;">${i.name}</td>
+            <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:center">${i.ref || '-'}</td>
+            <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:center">${i.quantity}</td>
+            <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:right">$${formatPrice(parsePrice(i.price))}</td>
+            <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:right">$${formatPrice(parsePrice(i.price) * i.quantity)}</td>
         </tr>
     `).join('');
 
     const ticketHTML = `
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <title>Ticket de Pedido - BRILHO JOYAS</title>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Inter', sans-serif; background: #fff; color: #222; padding: 40px; max-width: 680px; margin: 0 auto; }
-            .header { text-align: center; border-bottom: 3px solid #d4af37; padding-bottom: 20px; margin-bottom: 24px; }
-            .header h1 { font-size: 2rem; letter-spacing: 4px; color: #1a1a2e; }
-            .header .tagline { color: #888; font-size: 0.85rem; letter-spacing: 2px; margin-top: 4px; }
-            .ticket-meta { display: flex; justify-content: space-between; background: #f8f8f8; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; }
-            .ticket-meta span { color: #555; }
-            .ticket-meta strong { color: #222; }
-            .client-box { background: #fffbf0; border: 1px solid #d4af37; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
-            .client-box h3 { font-size: 0.9rem; color: #d4af37; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
-            .client-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-            .client-table td { padding: 4px 8px; }
-            .client-table td:first-child { width: 140px; color: #555; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            thead tr { background: #1a1a2e; color: #d4af37; }
-            thead th { padding: 10px 12px; text-align: left; font-size: 0.85rem; font-weight: 600; }
-            tbody tr:nth-child(even) { background: #f9f9f9; }
-            tbody td { padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; }
-            .total-box { text-align: right; padding: 14px 0; border-top: 2px solid #d4af37; }
-            .total-box span { font-size: 1.4rem; font-weight: 700; color: #1a1a2e; }
-            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #aaa; font-size: 0.78rem; }
-            .gold { color: #d4af37; }
-            @media print { body { padding: 20px; } button { display: none !important; } }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>BRILHO <span class="gold">JOYAS</span></h1>
-            <div class="tagline">Joyas • Silver • Steel &mdash; Catálogo Online</div>
+    <div style="font-family: 'Inter', sans-serif; background: #fff; color: #222; padding: 40px; max-width: 680px; margin: 0 auto; box-sizing: border-box;">
+        <div style="text-align: center; border-bottom: 3px solid #d4af37; padding-bottom: 20px; margin-bottom: 24px;">
+            <h1 style="font-size: 2rem; letter-spacing: 4px; color: #1a1a2e; margin: 0;">BRILHO <span style="color: #d4af37;">JOYAS</span></h1>
+            <div style="color: #888; font-size: 0.85rem; letter-spacing: 2px; margin-top: 4px;">Joyas • Silver • Steel &mdash; Catálogo Online</div>
         </div>
-        <div class="ticket-meta">
-            <div><span>Ticket N°: </span><strong>${numTicket}</strong></div>
-            <div><span>Fecha: </span><strong>${fecha}</strong></div>
+        <div style="display: flex; justify-content: space-between; background: #f8f8f8; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem;">
+            <div><span style="color: #555;">Ticket N°: </span><strong style="color: #222;">${numTicket}</strong></div>
+            <div><span style="color: #555;">Fecha: </span><strong style="color: #222;">${fecha}</strong></div>
         </div>
         ${clientRows}
-        <table>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <thead>
-                <tr>
-                    <th>Producto</th>
-                    <th style="text-align:center">Ref.</th>
-                    <th style="text-align:center">Cant.</th>
-                    <th style="text-align:right">P. Unit.</th>
-                    <th style="text-align:right">Subtotal</th>
+                <tr style="background: #1a1a2e; color: #d4af37;">
+                    <th style="padding: 10px 12px; text-align: left; font-size: 0.85rem; font-weight: 600;">Producto</th>
+                    <th style="padding: 10px 12px; text-align: center; font-size: 0.85rem; font-weight: 600;">Ref.</th>
+                    <th style="padding: 10px 12px; text-align: center; font-size: 0.85rem; font-weight: 600;">Cant.</th>
+                    <th style="padding: 10px 12px; text-align: right; font-size: 0.85rem; font-weight: 600;">P. Unit.</th>
+                    <th style="padding: 10px 12px; text-align: right; font-size: 0.85rem; font-weight: 600;">Subtotal</th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
         </table>
-        <div class="total-box">
-            TOTAL A PAGAR: <span>$${formatPrice(total)}</span>
+        <div style="text-align: right; padding: 14px 0; border-top: 2px solid #d4af37;">
+            TOTAL A PAGAR: <span style="font-size: 1.4rem; font-weight: 700; color: #1a1a2e;">$${formatPrice(total)}</span>
         </div>
-        <div class="footer">
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #aaa; font-size: 0.78rem;">
             Este ticket es un comprobante de su selección. El pedido se confirmará vía WhatsApp.<br>
             Gracias por elegir <strong>BRILHO JOYAS</strong> ✨
         </div>
-    </body>
-    </html>`;
+    </div>`;
 
-    const printWin = window.open('', '_blank', 'width=750,height=650');
-    printWin.document.write(ticketHTML);
-    printWin.document.close();
-    printWin.focus()
+    if (action === 'email') {
+        let body = `Estimado(a) ${client.name || 'Cliente'},\n\nResumen de su pedido (${numTicket}):\n\n`;
+        cart.forEach(i => {
+            body += `- ${i.name} (Ref: ${i.ref || 'N/A'}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
+        });
+        body += `\nTOTAL A PAGAR: $${formatPrice(total)}\n\n`;
+        body += `Si desea adjuntar el documento en PDF, puede generarlo y guardarlo desde el diálogo de impresión que se abrió.\n\n`;
+        body += `Gracias por su compra.`;
+        window.location.href = `mailto:${emailAddress}?subject=${encodeURIComponent('Factura de Pedido - BRILHO JOYAS')}&body=${encodeURIComponent(body)}`;
+    }
 
+    // NATIVE PRINT DIALOG: the absolute most robust way to print or Save to PDF on all mobile and desktop devices
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(`<!DOCTYPE html><html><head><title>Factura_${numTicket}</title></head><body style="margin:0; background:white;">${ticketHTML}</body></html>`);
+    iframe.contentWindow.document.close();
+    
+    // Add brief timeout to ensure HTML renders fully inside iframe
     setTimeout(() => {
-        printWin.print();
-    }, 600);
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+    }, 500);
 }
 

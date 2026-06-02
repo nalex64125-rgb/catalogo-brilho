@@ -258,6 +258,13 @@ h1, h2, h3, h4 {
   min-height: 250px;
   object-fit: cover;
   display: block;
+  image-rendering: -webkit-optimize-contrast; /* Safari/Chrome: máxima nitidez */
+  image-rendering: crisp-edges;               /* Firefox: bordes ultra nítidos */
+  -ms-interpolation-mode: bicubic;            /* IE: interpolación de alta calidad */
+  transform: translateZ(0);                   /* Activa aceleración GPU */
+  will-change: transform;                     /* Pre-renderizado en GPU */
+  backface-visibility: hidden;                /* Elimina difuminado en escalado */
+  filter: contrast(1.05) saturate(1.08);      /* Leve aumento de contraste y color */
 }
 .hero-content {
   position: absolute;
