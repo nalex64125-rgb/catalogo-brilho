@@ -78,9 +78,11 @@ h1, h2, h3, h4 {
 }
 .text-center { text-align: center; }
 .mb-4 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 0.75rem; }
 .w-full { width: 100%; }
 .pr-relative { position: relative; }
 .resize-none { resize: none; }
+.text-primary { color: var(--primary); }
 
 /* Buttons */
 .btn {
@@ -481,3 +483,221 @@ h1, h2, h3, h4 {
   .admin-grid { grid-template-columns: 1fr; }
   .admin-form-section { border-right: none; border-bottom: 1px solid var(--glass-border); }
 }
+
+/* ==============================
+   SKELETON LOADING
+   ============================== */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--surface) 25%,
+    var(--surface-hover) 50%,
+    var(--surface) 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: 6px;
+}
+.skeleton-img   { width: 100%; height: 260px; border-radius: 0; }
+.skeleton-tag   { width: 60%; height: 12px; margin-bottom: 10px; }
+.skeleton-title { width: 85%; height: 18px; margin-bottom: 8px; }
+.skeleton-desc  { width: 50%; height: 12px; margin-bottom: 16px; }
+.skeleton-price { width: 80px; height: 22px; }
+.skeleton-btn   { width: 80px; height: 36px; border-radius: 8px; margin-left: auto; }
+
+/* ==============================
+   BADGE NUEVA COLECCIÓN
+   ============================== */
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(212,175,55,0.5); }
+  50%       { box-shadow: 0 0 18px 5px rgba(212,175,55,0.9); }
+}
+@keyframes badgeShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.badge-new {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: linear-gradient(100deg, #b8860b 0%, #d4af37 30%, #f5e17a 50%, #d4af37 70%, #b8860b 100%);
+  background-size: 200% auto;
+  color: #1a1a2e;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+  animation: badgePulse 2s ease-in-out infinite, badgeShimmer 2.8s linear infinite;
+  z-index: 2;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.product-card.is-new {
+  border-color: rgba(212,175,55,0.45);
+}
+.product-card.is-new:hover {
+  border-color: rgba(212,175,55,0.85);
+  box-shadow: 0 10px 30px rgba(212,175,55,0.2);
+}
+
+/* ==============================
+   BOTÓN COMPARTIR WHATSAPP
+   ============================== */
+.btn-share {
+  background: rgba(37, 211, 102, 0.12);
+  border: 1px solid rgba(37, 211, 102, 0.35);
+  color: #25d366;
+  font-size: 1.1rem;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  flex-shrink: 0;
+}
+.btn-share:hover {
+  background: rgba(37, 211, 102, 0.28);
+  box-shadow: 0 0 12px rgba(37, 211, 102, 0.4);
+  transform: scale(1.12);
+}
+
+
+/* ==============================
+   VISOR DE ZOOM INTERACTIVO
+   ============================== */
+.zoom-modal {
+  /* Ocupa toda la pantalla */
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+/* Barra de controles flotante */
+.zoom-controls {
+  position: fixed;
+  top: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 15, 20, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 50px;
+  padding: 6px 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+}
+
+.zoom-ctrl-btn {
+  background: transparent;
+  border: none;
+  color: #f0f0f0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  line-height: 1;
+}
+.zoom-ctrl-btn:hover {
+  background: rgba(255,255,255,0.15);
+  transform: scale(1.1);
+}
+.zoom-close {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  margin-left: 4px;
+}
+.zoom-close:hover {
+  background: rgba(239, 68, 68, 0.55);
+  color: white;
+}
+.zoom-reset {
+  font-size: 1.1rem;
+  opacity: 0.5;
+  transition: opacity 0.2s, background 0.2s, transform 0.2s;
+}
+
+.zoom-level {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #d4af37;
+  min-width: 44px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* Contenedor de la imagen */
+.zoom-image-wrapper {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* La imagen en sí */
+.zoom-image {
+  max-width: 92vw;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.85);
+  cursor: zoom-in;
+  transform-origin: center center;
+  will-change: transform;
+  transition: transform 0.08s ease-out;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Máxima calidad de renderizado */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
+}
+
+/* Texto de ayuda en la parte inferior */
+.zoom-hint {
+  position: fixed;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3200;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.4);
+  text-align: center;
+  pointer-events: none;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 600px) {
+  .zoom-hint { display: none; }
+  .zoom-controls { top: 0.6rem; padding: 4px 8px; gap: 2px; }
+  .zoom-ctrl-btn { width: 32px; height: 32px; font-size: 1.1rem; }
+}
+

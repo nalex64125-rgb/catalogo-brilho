@@ -1,7 +1,7 @@
 // -------- CONFIGURATION --------
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx20ZnNP98AaZageJqz_oOCNtBjXZg7OzouKtQNKAQeP-hk0k-hmTLC758hY2cCNyor/exec";
 let ADMIN_PASS = localStorage.getItem('brilho_admin_pass') || "1234";
-const BUSINESS_PHONE = "+58-4149262763"; // format without +
+const BUSINESS_PHONE = "584149262763"; // format without + or dashes for wa.me
 const ADMIN_WHATSAPP = "584149262763"; // Tu WhatsApp de administrador (sin + ni espacios)
 
 // -------- STATE --------
@@ -268,10 +268,30 @@ function toggleModal(modalEl, overlayEl, show) {
     }
 }
 
+// -------- SKELETON LOADING --------
+function renderSkeleton(count = 8) {
+    els.productGrid.innerHTML = Array.from({ length: count }).map(() => `
+        <div class="product-card skeleton-card" style="position:relative;">
+            <div class="skeleton skeleton-img"></div>
+            <div class="product-info">
+                <div class="skeleton skeleton-tag"></div>
+                <div class="skeleton skeleton-title"></div>
+                <div class="skeleton skeleton-desc"></div>
+                <div class="product-footer">
+                    <div class="skeleton skeleton-price"></div>
+                    <div class="skeleton skeleton-btn"></div>
+                </div>
+            </div>
+        </div>`).join('');
+}
+
 // -------- DATA FETCHING --------
 async function loadProducts() {
+    if (isFirstLoad) renderSkeleton();
     try {
-        const response = await fetch(`${WEB_APP_URL}?t=${Date.now()}`);
+        // Añadir timestamp para evitar el caché del navegador y forzar los datos más recientes
+        const cacheBuster = '?t=' + new Date().getTime();
+        const response = await fetch(WEB_APP_URL + cacheBuster, { cache: "no-store" });
         const data = await response.json();
         
         // Deep compare to avoid unnecessary re-renders
@@ -292,7 +312,7 @@ async function loadProducts() {
 
 // -------- RENDER UI --------
 function renderCategories() {
-    const depts = [...new Set(products.map(p => p.dept).filter(Boolean))];
+    const depts = [...new Set(products.map(p => p.dept ? String(p.dept).trim() : '').filter(Boolean))];
     
     // Ribbon Desktop/Tablet
     let ribbonHtml = `<button class="cat-btn ${currentDept === 'all' ? 'active' : ''}" onclick="filterBy('all', 'all')">Todos</button>`;
@@ -301,8 +321,9 @@ function renderCategories() {
     let mobileHtml = `<div class="mobile-cat-header ${currentDept === 'all' ? 'text-primary' : ''}" style="cursor:pointer;" onclick="filterBy('all', 'all'); toggleMobileDrawer(false);">Todos</div>`;
 
     depts.forEach(d => {
-        const categories = [...new Set(products.filter(p => p.dept === d).map(p => p.cat).filter(Boolean))];
-        const dEnc = encodeURIComponent(d);
+        const categories = [...new Set(products.filter(p => p.dept && String(p.dept).trim() === d).map(p => p.cat ? String(p.cat).trim() : '').filter(Boolean))];
+        // Protege contra comillas simples que rompen el onClick
+        const dEnc = encodeURIComponent(d).replace(/'/g, "%27");
         
         if (categories.length > 0) {
             const dropdownId = 'dropdown-' + d.replace(/\s+/g, '-');
@@ -311,7 +332,10 @@ function renderCategories() {
                 <button class="cat-btn ${currentDept === d ? 'active' : ''}" onclick="toggleDropdown('${dropdownId}', event)">${d} ▾</button>
                 <div class="dropdown-menu">
                     <div class="dropdown-item ${currentCat === 'all' && currentDept === d ? 'active' : ''}" onclick="filterBy('${dEnc}', 'all')">Ver todo lo de ${d}</div>
-                    ${categories.map(c => `<div class="dropdown-item ${currentCat === c ? 'active' : ''}" onclick="filterBy('${dEnc}', '${encodeURIComponent(c)}')">${c}</div>`).join('')}
+                    ${categories.map(c => {
+                        const cEnc = encodeURIComponent(c).replace(/'/g, "%27");
+                        return `<div class="dropdown-item ${currentCat === c ? 'active' : ''}" onclick="filterBy('${dEnc}', '${cEnc}')">${c}</div>`;
+                    }).join('')}
                 </div>
             </div>`;
             
@@ -322,7 +346,10 @@ function renderCategories() {
                     <button class="mobile-expander" onclick="toggleMobileSubmenu(this)">▾</button>
                 </div>
                 <div class="mobile-subcat">
-                    ${categories.map(c => `<div class="mobile-cat-link" onclick="filterBy('${dEnc}', '${encodeURIComponent(c)}'); toggleMobileDrawer(false);" style="padding: 0.5rem 0; cursor:pointer; ${currentCat === c ? 'color: var(--primary); font-weight: bold;' : ''}">${c}</div>`).join('')}
+                    ${categories.map(c => {
+                        const cEnc = encodeURIComponent(c).replace(/'/g, "%27");
+                        return `<div class="mobile-cat-link" onclick="filterBy('${dEnc}', '${cEnc}'); toggleMobileDrawer(false);" style="padding: 0.5rem 0; cursor:pointer; ${currentCat === c ? 'color: var(--primary); font-weight: bold;' : ''}">${c}</div>`;
+                    }).join('')}
                 </div>
             </div>`;
         } else {
@@ -351,6 +378,11 @@ function renderCategories() {
             searchFilter.value = encodeURIComponent(currentDept);
         }
     }
+    
+    // Update Admin bulk delete dropdowns if they exist
+    if (typeof populateBulkDeleteOptions === 'function') {
+        populateBulkDeleteOptions();
+    }
 }
 
 window.toggleDropdown = function(id, e) {
@@ -375,6 +407,12 @@ window.filterBy = function(deptEnc, catEnc) {
     
     currentDept = dept;
     currentCat = cat;
+    
+    // Limpiar búsqueda al cambiar de categoría para evitar que oculte productos
+    currentSearch = '';
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    
     renderCategories(); // update active state on buttons
 
     applyFilters();
@@ -383,10 +421,10 @@ window.filterBy = function(deptEnc, catEnc) {
 window.applyFilters = function() {
     let filtered = products;
     if (currentDept !== 'all') {
-        filtered = filtered.filter(p => p.dept === currentDept);
+        filtered = filtered.filter(p => p.dept && String(p.dept).trim() === currentDept);
     }
     if (currentCat !== 'all') {
-        filtered = filtered.filter(p => p.cat === currentCat);
+        filtered = filtered.filter(p => p.cat && String(p.cat).trim() === currentCat);
     }
     if (currentSearch.trim() !== '') {
         const term = currentSearch.toLowerCase();
@@ -416,23 +454,52 @@ function renderProducts(items) {
                 stockBadge = `<span style="position:absolute; top:8px; right:8px; background:#d97706; color:white; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:20px;">Últimas ${stock}</span>`;
             }
         }
+        
+        // ✅ Badge Nueva Colección
+        const isNew = p.isNew === true || String(p.isNew).toLowerCase() === 'true' || p.isNew === 1 || p.isNew === '1';
+        const newBadge = isNew ? `<span class="badge-new">✨ Nueva Colección</span>` : '';
+        
         const isOutOfStock = !isNaN(stock) && stock === 0;
+        // Escape el nombre para usarlo en atributos HTML inline
+        const safeName = String(p.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeRef  = String(p.ref  || '').replace(/'/g, "\\'");
+        
+        // Evita que comillas dentro del link de la imagen rompan el HTML
+        let rawImg = p.img || 'assets/logo_empresa.png';
+        const safeImg = String(rawImg).replace(/"/g, '%22').trim();
+        
+        // Estilos del botón según disponibilidad
+        const btnStyle = isOutOfStock
+            ? 'padding: 0.5rem 1rem; opacity:0.4; cursor:not-allowed;'
+            : 'padding: 0.5rem 1rem;';
+        
         return `
-        <div class="product-card" style="position:relative;">
+        <div class="product-card${isNew ? ' is-new' : ''}" style="position:relative;">
+            ${newBadge}
             ${stockBadge}
-            <img src="${p.img || 'assets/logo_empresa.png'}" alt="${p.name}" class="product-img" loading="lazy" style="cursor: zoom-in; ${isOutOfStock ? 'opacity:0.5;' : ''}" onclick="openImageZoom('${p.img || 'assets/logo_empresa.png'}')" onerror="this.src='assets/logo_empresa.png'">
+            <img src="${safeImg}" alt="${safeName}" class="product-img" loading="lazy" style="cursor: zoom-in; ${isOutOfStock ? 'opacity:0.5;' : ''}" onclick="openImageZoomById('${p.id}')" onerror="this.src='assets/logo_empresa.png'">
             <div class="product-info">
                 <span class="product-tag">${p.dept || 'Genérico'} ${p.cat ? '| '+p.cat : ''}</span>
                 <h3 class="product-title">${p.name}</h3>
                 <p class="product-desc">Ref: ${p.ref || 'N/A'}</p>
                 <div class="product-footer">
                     <span class="product-price">$${formatPrice(p.price)}</span>
-                    <button onclick="addToCart('${p.id}')" class="btn btn-primary" style="padding: 0.5rem 1rem;" ${isOutOfStock ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>Añadir</button>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button onclick="shareProduct('${safeName}','${safeRef}','${formatPrice(p.price)}')" class="btn-share" title="Compartir por WhatsApp">&#x1F4E4;</button>
+                        <button onclick="addToCart('${p.id}')" class="btn btn-primary" style="${btnStyle}" ${isOutOfStock ? 'disabled' : ''}>Añadir</button>
+                    </div>
                 </div>
             </div>
         </div>`;
     }).join('');
 }
+
+// -------- COMPARTIR PRODUCTO POR WHATSAPP --------
+window.shareProduct = function(name, ref, price) {
+    const url = window.location.href.split('?')[0];
+    const msg = `🛍️ *${name}*\n📦 Ref: ${ref}\n💰 Precio: $${price}\n\n¡Mira este producto en nuestro catálogo!\n${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+};
 
 function renderAdminList() {
     let list = products;
@@ -455,7 +522,7 @@ function renderAdminList() {
             <div style="flex-grow:1; display:flex; align-items:center; gap:10px;">
                 <img src="${p.img}" style="width:40px; height:40px; object-fit:cover; border-radius:4px; background:#000;">
                 <div>
-                   <div style="font-weight:600; font-size:0.95rem;">${p.name}</div>
+                   <div style="font-weight:600; font-size:0.95rem;">${p.name} ${(p.isNew === true || String(p.isNew).toLowerCase() === 'true' || p.isNew === 1 || p.isNew === '1') ? '<span style="font-size:0.65rem;background:linear-gradient(100deg,#b8860b,#d4af37,#f5e17a,#d4af37,#b8860b);color:#1a1a2e;padding:2px 7px;border-radius:10px;font-weight:800;margin-left:5px;">✨ NUEVO</span>' : ''}</div>
                    <div style="font-size:0.8rem; color:var(--gray-400);">Ref: ${p.ref} - $${formatPrice(p.price)}</div>
                 </div>
             </div>
@@ -587,26 +654,175 @@ function handleOrderSubmit(e) {
     toggleModal(els.checkoutModal, els.modalOverlayCheckout, false);
 }
 
-// -------- IMAGE ZOOM --------
+// -------- IMAGE ZOOM INTERACTIVO --------
+let _zoomScale = 1;
+let _zoomX = 0;
+let _zoomY = 0;
+let _isDragging = false;
+let _dragStart = { x: 0, y: 0 };
+let _pinchDist = null;
+
+function _applyZoomTransform() {
+    const img = document.getElementById('zoomedImage');
+    if (!img) return;
+    img.style.transform = `translate(${_zoomX}px, ${_zoomY}px) scale(${_zoomScale})`;
+    // Mostrar u ocultar reset btn
+    const resetBtn = document.getElementById('zoomResetBtn');
+    if (resetBtn) resetBtn.style.opacity = _zoomScale !== 1 ? '1' : '0.5';
+}
+
+function _resetZoom() {
+    _zoomScale = 1;
+    _zoomX = 0;
+    _zoomY = 0;
+    _applyZoomTransform();
+}
+
+window.openImageZoomById = function(id) {
+    const p = products.find(prod => String(prod.id) === String(id));
+    if (p && p.img) {
+        window.openImageZoom(p.img);
+    } else {
+        window.openImageZoom('assets/logo_empresa.png');
+    }
+};
+
 window.openImageZoom = function(src) {
-    document.getElementById('zoomedImage').src = src;
+    _resetZoom();
+    const img = document.getElementById('zoomedImage');
+    img.src = src;
+    img.style.transform = '';
     document.getElementById('imageZoomModal').classList.add('open');
     document.getElementById('overlayImageZoom').classList.add('active');
-}
+
+    // Actualizar contador
+    document.getElementById('zoomLevelLabel').textContent = '100%';
+
+    // ── WHEEL ZOOM ──
+    img.onwheel = (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.15 : -0.15;
+        _zoomScale = Math.min(5, Math.max(1, _zoomScale + delta));
+        if (_zoomScale === 1) { _zoomX = 0; _zoomY = 0; }
+        _applyZoomTransform();
+        document.getElementById('zoomLevelLabel').textContent = Math.round(_zoomScale * 100) + '%';
+    };
+
+    // ── MOUSE DRAG ──
+    img.onmousedown = (e) => {
+        if (_zoomScale <= 1) return;
+        _isDragging = true;
+        _dragStart = { x: e.clientX - _zoomX, y: e.clientY - _zoomY };
+        img.style.cursor = 'grabbing';
+        e.preventDefault();
+    };
+    // Use named handlers so they can be cleanly removed on close
+    window._zoomMouseMove = (e) => {
+        if (!_isDragging) return;
+        _zoomX = e.clientX - _dragStart.x;
+        _zoomY = e.clientY - _dragStart.y;
+        _applyZoomTransform();
+    };
+    window._zoomMouseUp = () => {
+        _isDragging = false;
+        img.style.cursor = _zoomScale > 1 ? 'grab' : 'zoom-in';
+    };
+    window.addEventListener('mousemove', window._zoomMouseMove);
+    window.addEventListener('mouseup', window._zoomMouseUp);
+
+    // ── TOUCH PINCH ──
+    img.ontouchstart = (e) => {
+        if (e.touches.length === 2) {
+            _pinchDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+        } else if (e.touches.length === 1 && _zoomScale > 1) {
+            _isDragging = true;
+            _dragStart = { x: e.touches[0].clientX - _zoomX, y: e.touches[0].clientY - _zoomY };
+        }
+    };
+    img.ontouchmove = (e) => {
+        e.preventDefault();
+        if (e.touches.length === 2 && _pinchDist !== null) {
+            const newDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const ratio = newDist / _pinchDist;
+            _zoomScale = Math.min(5, Math.max(1, _zoomScale * ratio));
+            _pinchDist = newDist;
+            if (_zoomScale === 1) { _zoomX = 0; _zoomY = 0; }
+            _applyZoomTransform();
+            document.getElementById('zoomLevelLabel').textContent = Math.round(_zoomScale * 100) + '%';
+        } else if (e.touches.length === 1 && _isDragging) {
+            _zoomX = e.touches[0].clientX - _dragStart.x;
+            _zoomY = e.touches[0].clientY - _dragStart.y;
+            _applyZoomTransform();
+        }
+    };
+    img.ontouchend = () => {
+        _isDragging = false;
+        _pinchDist = null;
+    };
+};
 
 window.toggleImageZoom = function(show) {
     if (!show) {
         document.getElementById('imageZoomModal').classList.remove('open');
         document.getElementById('overlayImageZoom').classList.remove('active');
+        // Limpiar eventos correctamente
+        const img = document.getElementById('zoomedImage');
+        if (img) { img.onwheel = null; img.onmousedown = null; }
+        if (window._zoomMouseMove) window.removeEventListener('mousemove', window._zoomMouseMove);
+        if (window._zoomMouseUp)   window.removeEventListener('mouseup',  window._zoomMouseUp);
+        window._zoomMouseMove = null;
+        window._zoomMouseUp   = null;
+        _resetZoom();
     }
-}
+};
+
+window.zoomIn = function() {
+    _zoomScale = Math.min(5, _zoomScale + 0.25);
+    _applyZoomTransform();
+    document.getElementById('zoomLevelLabel').textContent = Math.round(_zoomScale * 100) + '%';
+};
+window.zoomOut = function() {
+    _zoomScale = Math.max(1, _zoomScale - 0.25);
+    if (_zoomScale === 1) { _zoomX = 0; _zoomY = 0; }
+    _applyZoomTransform();
+    document.getElementById('zoomLevelLabel').textContent = Math.round(_zoomScale * 100) + '%';
+};
+window.zoomReset = function() {
+    _resetZoom();
+    document.getElementById('zoomLevelLabel').textContent = '100%';
+};
 
 // -------- ADMIN FEATURES --------
+
+// Vista previa de imagen antes de subir al catálogo
+window.previewAdminImage = function(input) {
+    const wrap = document.getElementById('imgPreviewWrap');
+    const preview = document.getElementById('imgPreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.src = e.target.result;
+            wrap.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        wrap.style.display = 'none';
+        preview.src = '';
+    }
+};
+
 function handleLogin() {
     if (els.adminPassInput.value === ADMIN_PASS) {
         toggleModal(els.loginModal, els.modalOverlayLogin, false);
         els.adminPassInput.value = '';
         renderAdminList();
+        if (typeof populateBulkDeleteOptions === 'function') populateBulkDeleteOptions();
         toggleModal(els.adminPanel, els.modalOverlayAdmin, true);
     } else {
         alert("Contraseña incorrecta");
@@ -615,8 +831,9 @@ function handleLogin() {
     }
 }
 
-// IMAGE COMPRESSOR (Ultra-light for Google Sheets 50k char limit)
-function compressImage(file, maxDist = 400) {
+// IMAGE COMPRESSOR — Alta calidad para catálogo premium
+// Estrategia en 2 pasos: intenta 800px/0.82 → si es grande, baja a 600px/0.72
+function compressImage(file, maxDist = 800) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -624,24 +841,42 @@ function compressImage(file, maxDist = 400) {
             const img = new Image();
             img.src = event.target.result;
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                
-                if (width > height) {
-                    if (width > maxDist) { height *= maxDist / width; width = maxDist; }
-                } else {
-                    if (height > maxDist) { width *= maxDist / height; height = maxDist; }
+                const tryCompress = (size, quality) => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > size) { height = Math.round(height * size / width); width = size; }
+                    } else {
+                        if (height > size) { width = Math.round(width * size / height); height = size; }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    // Mejor interpolación para escalar
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    return canvas.toDataURL('image/webp', quality);
+                };
+
+                // Intento 1: 800px a 0.82 de calidad (nítida para zoom)
+                let result = tryCompress(800, 0.82);
+
+                // Si supera el límite, reducir a 600px / 0.72
+                if (result.length > 45000) {
+                    result = tryCompress(600, 0.72);
                 }
-                
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Compress to WebP at 0.5 quality for maximum lightness
-                const compressedBase64 = canvas.toDataURL('image/webp', 0.5);
-                resolve(compressedBase64);
+
+                // Último recurso: 450px / 0.60
+                if (result.length > 45000) {
+                    result = tryCompress(450, 0.60);
+                }
+
+                resolve(result);
             };
             img.onerror = error => reject(error);
         };
@@ -663,7 +898,7 @@ async function handleAddProduct(e) {
     els.adminStatus.innerText = "⏳ Optimizando imagen...";
 
     try {
-        const compressedBase64 = await compressImage(file, 400); // 400px max
+        const compressedBase64 = await compressImage(file, 800); // 800px para alta calidad
         
         if (compressedBase64.length > 45000) {
             els.adminStatus.innerText = "❌ La imagen es muy compleja/grande. Usa otra foto.";
@@ -679,6 +914,7 @@ async function handleAddProduct(e) {
             dept: document.getElementById('pDept').value.trim(),
             cat: document.getElementById('pCategory').value.trim(),
             desc: document.getElementById('pDesc').value.trim(),
+            isNew: document.getElementById('pIsNew') ? document.getElementById('pIsNew').checked : false,
             img: compressedBase64
         };
         
@@ -694,6 +930,9 @@ async function handleAddProduct(e) {
         
         setTimeout(() => {
             els.productForm.reset();
+            // Ocultar vista previa al limpiar el formulario
+            const wrap = document.getElementById('imgPreviewWrap');
+            if (wrap) wrap.style.display = 'none';
             els.adminStatus.innerText = "";
             els.saveProductBtn.disabled = false;
             loadProducts();
@@ -714,16 +953,115 @@ window.deleteProduct = async function(id) {
             mode: 'no-cors',
             body: JSON.stringify({ action: 'DELETE', id: id })
         });
-        // Optimistic delete
+        // Optimistic delete — quitar el producto del array local sin recargar
         products = products.filter(p => String(p.id) !== String(id));
         renderAdminList();
         renderCategories();
-        filterBy(currentCategory);
+        // ✅ CORREGIDO: usar las variables correctas de estado
+        filterBy(encodeURIComponent(currentDept), encodeURIComponent(currentCat));
         
-        // Refresh silently
-        loadProducts();
+        // Refresh silently para confirmar el estado real del servidor
+        setTimeout(loadProducts, 2000);
     } catch (e) {
         alert("Error al intentar eliminar. Revisa tu conexión.");
+    }
+}
+
+// -------- GESTIÓN MASIVA (ADMIN) --------
+window.populateBulkDeleteOptions = function() {
+    const depts = [...new Set(products.map(p => p.dept ? String(p.dept).trim() : '').filter(Boolean))];
+    const deptSelect = document.getElementById('delDeptSelect');
+    if (!deptSelect) return;
+    
+    const currentVal = deptSelect.value;
+    deptSelect.innerHTML = `<option value="">-- Seleccionar Dept --</option>` + 
+                           depts.map(d => `<option value="${d}">${d}</option>`).join('');
+                           
+    if (depts.includes(currentVal)) deptSelect.value = currentVal;
+    window.updateDelCatSelect();
+};
+
+window.updateDelCatSelect = function() {
+    const dept = document.getElementById('delDeptSelect').value;
+    const catSelect = document.getElementById('delCatSelect');
+    if (!catSelect) return;
+    
+    if (!dept) {
+        catSelect.innerHTML = `<option value="all">Todas las categorías</option>`;
+        return;
+    }
+    
+    const categories = [...new Set(products.filter(p => p.dept && String(p.dept).trim() === dept).map(p => p.cat ? String(p.cat).trim() : '').filter(Boolean))];
+    catSelect.innerHTML = `<option value="all">Todas las categorías</option>` + 
+                          categories.map(c => `<option value="${c}">${c}</option>`).join('');
+};
+
+window.deleteBulk = async function() {
+    const dept = document.getElementById('delDeptSelect').value;
+    const cat = document.getElementById('delCatSelect').value;
+    const statusEl = document.getElementById('bulkDeleteStatus');
+    
+    if (!dept) {
+        alert("Por favor selecciona un departamento primero.");
+        return;
+    }
+    
+    let toDelete = products.filter(p => p.dept && String(p.dept).trim() === dept);
+    if (cat !== 'all') {
+        toDelete = toDelete.filter(p => p.cat && String(p.cat).trim() === cat);
+    }
+    
+    if (toDelete.length === 0) {
+        alert("No hay productos en este grupo.");
+        return;
+    }
+    
+    const msg = cat === 'all' 
+        ? `¿Estás seguro de eliminar TODO el departamento "${dept}"? (${toDelete.length} productos serán borrados)`
+        : `¿Estás seguro de eliminar la categoría "${cat}" dentro de "${dept}"? (${toDelete.length} productos serán borrados)`;
+        
+    if (!confirm(msg)) return;
+    if (!confirm("⚠️ ¡ADVERTENCIA FINAL! Esta acción no se puede deshacer y borrará permanentemente todos estos productos del catálogo. ¿Estás absolutamente seguro?")) return;
+    
+    statusEl.innerText = `⏳ Eliminando ${toDelete.length} productos...`;
+    statusEl.style.color = 'var(--text-main)';
+    
+    // Deshabilitar botón temporalmente para evitar doble clic
+    const btn = document.querySelector('button[onclick="deleteBulk()"]');
+    if(btn) btn.disabled = true;
+    
+    try {
+        let successCount = 0;
+        // Se borran secuencialmente para no saturar el Google Apps Script
+        for (const p of toDelete) {
+            statusEl.innerText = `⏳ Borrando ${successCount + 1}/${toDelete.length} (${p.name})...`;
+            await fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: 'DELETE', id: p.id })
+            });
+            successCount++;
+            
+            // Borrado optimista local para que la UI se actualice rápido
+            products = products.filter(prod => String(prod.id) !== String(p.id));
+        }
+        
+        statusEl.innerText = `✅ Se eliminaron ${successCount} productos.`;
+        statusEl.style.color = '#25d366';
+        
+        renderAdminList();
+        renderCategories();
+        filterBy(encodeURIComponent(currentDept), encodeURIComponent(currentCat));
+        
+        setTimeout(() => { statusEl.innerText = ''; }, 4000);
+        setTimeout(loadProducts, 2000); // Sincronización en segundo plano
+        
+    } catch (e) {
+        console.error(e);
+        statusEl.innerText = "❌ Error. Algunos productos no se eliminaron. Revisa tu conexión.";
+        statusEl.style.color = 'var(--danger)';
+    } finally {
+        if(btn) btn.disabled = false;
     }
 }
 
