@@ -12,6 +12,26 @@ let currentCat = 'all';
 let currentSearch = '';
 let isFirstLoad = true;
 
+// -------- COLORES, MEDIDAS Y VENDEDORES --------
+const DEFAULT_COLORS = [
+    { name: 'Dorado', hex: '#d4af37' },
+    { name: 'Plateado', hex: '#c0c0c0' },
+    { name: 'Oro Rosa', hex: '#e8a87c' },
+    { name: 'Negro', hex: '#1a1a1a' },
+    { name: 'Blanco', hex: '#f5f5f5' }
+];
+const DEFAULT_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12', '13'];
+const DEFAULT_SELLERS = ['Vendedor 1'];
+
+let availableColors = JSON.parse(localStorage.getItem('brilho_colors') || 'null') || [...DEFAULT_COLORS];
+let availableSizes = JSON.parse(localStorage.getItem('brilho_sizes') || 'null') || [...DEFAULT_SIZES];
+let availableSellers = JSON.parse(localStorage.getItem('brilho_sellers') || 'null') || [...DEFAULT_SELLERS];
+
+// Variant modal state
+let _vmPendingProduct = null;
+let _vmSelectedColor = null;
+let _vmSelectedSize = null;
+
 // -------- DOM ELEMENTS --------
 const els = {
     // Navigation
@@ -66,6 +86,7 @@ const els = {
 // -------- INITIALIZATION --------
 function initApp() {
     initEvents();
+    initManagement();
     loadProducts();
     // Auto-refresh products every 45s
     setInterval(loadProducts, 45000);
@@ -103,12 +124,14 @@ function initEvents() {
             form.reportValidity();
             return;
         }
+        const sellerEl = document.getElementById('custSeller');
         const clientData = {
             name: document.getElementById('custName').value.trim(),
             idNum: document.getElementById('custId').value.trim(),
             phone: document.getElementById('custPhone').value.trim(),
             transport: document.getElementById('custTransport').value.trim(),
-            addr: document.getElementById('custAddr').value.trim()
+            addr: document.getElementById('custAddr').value.trim(),
+            seller: sellerEl ? sellerEl.value.trim() : ''
         };
         generateTicketPDF(clientData, 'download');
     });
@@ -130,12 +153,14 @@ function initEvents() {
                 return;
             }
 
+            const sellerEl2 = document.getElementById('custSeller');
             const clientData = {
                 name: document.getElementById('custName').value.trim(),
                 idNum: document.getElementById('custId').value.trim(),
                 phone: document.getElementById('custPhone').value.trim(),
                 transport: document.getElementById('custTransport').value.trim(),
-                addr: document.getElementById('custAddr').value.trim()
+                addr: document.getElementById('custAddr').value.trim(),
+                seller: sellerEl2 ? sellerEl2.value.trim() : ''
             };
 
             generateTicketPDF(clientData, 'email', email);
@@ -244,6 +269,14 @@ function initEvents() {
             renderAdminList();
         });
     }
+
+    // Variant Modal Events
+    const vmCancelBtn = document.getElementById('vmCancelBtn');
+    const vmAddBtn = document.getElementById('vmAddBtn');
+    const overlayVariant = document.getElementById('overlayVariant');
+    if (vmCancelBtn) vmCancelBtn.addEventListener('click', closeVariantModal);
+    if (overlayVariant) overlayVariant.addEventListener('click', closeVariantModal);
+    if (vmAddBtn) vmAddBtn.addEventListener('click', confirmVariantAdd);
 }
 
 // -------- TOGGLE UTILS --------
@@ -531,29 +564,131 @@ function renderAdminList() {
     `).join('');
 }
 
+// -------- VARIANT SELECTION MODAL --------
+function openVariantModal(pid) {
+    const p = products.find(i => String(i.id) === String(pid));
+    if (!p) return;
+    
+    _vmPendingProduct = p;
+    _vmSelectedColor = null;
+    _vmSelectedSize = null;
+    
+    // Set product name
+    document.getElementById('vmProductName').textContent = p.name;
+    
+    // Render color chips
+    const colorContainer = document.getElementById('vmColorChips');
+    if (availableColors.length > 0) {
+        document.getElementById('vmColorSection').style.display = '';
+        colorContainer.innerHTML = `<div class="color-chip-label" onclick="selectVmColor(null, this)">
+            <div class="color-chip chip-na" style="background: repeating-linear-gradient(45deg, var(--gray-700), var(--gray-700) 3px, var(--bg-dark) 3px, var(--bg-dark) 6px); border: 1px dashed var(--gray-500);"></div>
+            <span>N/A</span>
+        </div>` + availableColors.map(c => `
+            <div class="color-chip-label" onclick="selectVmColor('${c.name}', this)">
+                <div class="color-chip" style="background:${c.hex};" title="${c.name}" data-color="${c.name}"></div>
+                <span>${c.name}</span>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('vmColorSection').style.display = 'none';
+    }
+    
+    // Render size chips
+    const sizeContainer = document.getElementById('vmSizeChips');
+    if (availableSizes.length > 0) {
+        document.getElementById('vmSizeSection').style.display = '';
+        sizeContainer.innerHTML = `<button type="button" class="size-chip chip-na" onclick="selectVmSize(null, this)">N/A</button>` +
+            availableSizes.map(s => `
+            <button type="button" class="size-chip" onclick="selectVmSize('${s}', this)">${s}</button>
+        `).join('');
+    } else {
+        document.getElementById('vmSizeSection').style.display = 'none';
+    }
+    
+    // Show modal
+    document.getElementById('variantModal').classList.add('open');
+    document.getElementById('overlayVariant').classList.add('active');
+}
+
+function closeVariantModal() {
+    document.getElementById('variantModal').classList.remove('open');
+    document.getElementById('overlayVariant').classList.remove('active');
+    _vmPendingProduct = null;
+}
+
+window.selectVmColor = function(colorName, el) {
+    _vmSelectedColor = colorName;
+    document.querySelectorAll('#vmColorChips .color-chip').forEach(c => c.classList.remove('selected'));
+    const chip = el.querySelector('.color-chip') || el;
+    chip.classList.add('selected');
+}
+
+window.selectVmSize = function(size, el) {
+    _vmSelectedSize = size;
+    document.querySelectorAll('#vmSizeChips .size-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function confirmVariantAdd() {
+    if (!_vmPendingProduct) return;
+    
+    const p = _vmPendingProduct;
+    const color = _vmSelectedColor || null;
+    const size = _vmSelectedSize || null;
+    
+    // Cart key = id + color + size for unique combos
+    const cartKey = `${p.id}_${color || 'nocolor'}_${size || 'nosize'}`;
+    
+    const exist = cart.find(i => i.cartKey === cartKey);
+    if (exist) {
+        exist.quantity++;
+    } else {
+        cart.push({
+            ...p,
+            cartKey: cartKey,
+            selectedColor: color,
+            selectedColorHex: color ? (availableColors.find(c => c.name === color) || {}).hex || '' : '',
+            selectedSize: size,
+            quantity: 1
+        });
+    }
+    
+    closeVariantModal();
+    updateCartUI();
+    toggleCart(true);
+}
+
 // -------- CART LOGIC --------
 window.addToCart = function(pid) {
     const p = products.find(i => String(i.id) === String(pid));
     if (!p) return;
     
-    const exist = cart.find(i => String(i.id) === String(pid));
+    // If there are colors or sizes available, show variant modal
+    if (availableColors.length > 0 || availableSizes.length > 0) {
+        openVariantModal(pid);
+        return;
+    }
+    
+    // No variants: add directly with a cartKey
+    const cartKey = `${pid}_nocolor_nosize`;
+    const exist = cart.find(i => i.cartKey === cartKey);
     if (exist) {
         exist.quantity++;
     } else {
-        cart.push({...p, quantity: 1});
+        cart.push({...p, cartKey: cartKey, selectedColor: null, selectedColorHex: '', selectedSize: null, quantity: 1});
     }
     
     updateCartUI();
     toggleCart(true);
 }
 
-window.changeQty = function(pid, delta) {
-    const item = cart.find(c => String(c.id) === String(pid));
+window.changeQty = function(cartKey, delta) {
+    const item = cart.find(c => c.cartKey === cartKey);
     if (!item) return;
     
     item.quantity += delta;
     if (item.quantity <= 0) {
-        cart = cart.filter(c => String(c.id) !== String(pid));
+        cart = cart.filter(c => c.cartKey !== cartKey);
     }
     updateCartUI();
 }
@@ -571,20 +706,36 @@ function updateCartUI() {
         return;
     }
 
-    els.cartItems.innerHTML = cart.map(i => `
+    els.cartItems.innerHTML = cart.map(i => {
+        // Variant tags
+        let variantTags = '';
+        if (i.selectedColor || i.selectedSize) {
+            variantTags = '<div class="cart-variant-tags">';
+            if (i.selectedColor) {
+                variantTags += `<span class="cart-vtag cart-vtag-color"><span class="cart-vtag-dot" style="background:${i.selectedColorHex || '#888'}"></span>${i.selectedColor}</span>`;
+            }
+            if (i.selectedSize) {
+                variantTags += `<span class="cart-vtag cart-vtag-size">Talla ${i.selectedSize}</span>`;
+            }
+            variantTags += '</div>';
+        }
+        
+        const safeCartKey = (i.cartKey || i.id).replace(/'/g, "\\'");
+        return `
         <div class="cart-item">
             <img src="${i.img || 'assets/logo_empresa.png'}">
             <div class="cart-item-info">
                 <h4>${i.name}</h4>
+                ${variantTags}
                 <p>$${formatPrice(i.price)}</p>
             </div>
             <div class="qty-controls">
-                <button class="qty-btn" onclick="changeQty('${i.id}', -1)">−</button>
+                <button class="qty-btn" onclick="changeQty('${safeCartKey}', -1)">−</button>
                 <span style="font-weight:bold; min-width: 20px; text-align:center;">${i.quantity}</span>
-                <button class="qty-btn" onclick="changeQty('${i.id}', 1)">+</button>
+                <button class="qty-btn" onclick="changeQty('${safeCartKey}', 1)">+</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
     
     const t = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
     els.cartTotal.innerText = `$${formatPrice(t)}`;
@@ -599,14 +750,19 @@ function handleOrderSubmit(e) {
     const phone = document.getElementById('custPhone').value.trim();
     const addr = document.getElementById('custAddr').value.trim();
     const transport = document.getElementById('custTransport').value.trim();
+    const sellerEl = document.getElementById('custSeller');
+    const seller = sellerEl ? sellerEl.value.trim() : '';
     const email = document.getElementById('custEmail') ? document.getElementById('custEmail').value.trim() : '';
     const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
     const numTicket = 'PED-' + Date.now().toString().slice(-6);
     
-    // Build order lines
+    // Build order lines with color/size
     let itemLines = '';
     cart.forEach(i => {
-        itemLines += `- ${i.name} (Ref: ${i.ref || 'N/A'}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
+        let extras = '';
+        if (i.selectedColor) extras += ` | Color: ${i.selectedColor}`;
+        if (i.selectedSize) extras += ` | Talla: ${i.selectedSize}`;
+        itemLines += `- ${i.name} (Ref: ${i.ref || 'N/A'}${extras}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
     });
 
     // 1️⃣ WhatsApp al cliente/pedido principal
@@ -615,36 +771,68 @@ function handleOrderSubmit(e) {
     msg += `*Cédula/RIF:* ${idNum}\n`;
     msg += `*Teléfono:* ${phone}\n`;
     msg += `*Dirección:* ${addr}\n`;
-    msg += `*Agencia de Envío:* ${transport}\n\n`;
-    msg += `*Resumen de compra:*\n${itemLines}`;
+    msg += `*Agencia de Envío:* ${transport}\n`;
+    if (seller) msg += `*Vendedor:* ${seller}\n`;
+    msg += `\n*Resumen de compra:*\n${itemLines}`;
     msg += `\n*TOTAL A PAGAR:* $${formatPrice(total)}`;
 
     const encodedMsg = encodeURIComponent(msg);
     window.open(`https://wa.me/${BUSINESS_PHONE}?text=${encodedMsg}`, '_blank');
 
-    // 2️⃣ ✅ NOTIFICACIÓN AUTOMÁTICA AL ADMINISTRADOR vía WhatsApp
+    // 2️⃣ ✅ NOTIFICACIÓN AUTOMÁTICA AL ADMINISTRADOR vía WhatsApp (incluye factura completa)
     setTimeout(() => {
         let adminMsg = `🔔 *NUEVO PEDIDO RECIBIDO*\n*N° ${numTicket}*\n\n`;
         adminMsg += `👤 *Cliente:* ${name}\n`;
         adminMsg += `📱 *Teléfono:* ${phone}\n`;
-        adminMsg += `📦 *Productos:*\n${itemLines}`;
+        adminMsg += `📋 *Cédula/RIF:* ${idNum}\n`;
+        adminMsg += `📍 *Dirección:* ${addr}\n`;
+        adminMsg += `🚚 *Agencia:* ${transport}\n`;
+        if (seller) adminMsg += `🏷️ *Vendedor:* ${seller}\n`;
+        adminMsg += `\n📦 *Productos:*\n${itemLines}`;
         adminMsg += `\n💰 *TOTAL:* $${formatPrice(total)}`;
         const adminEncoded = encodeURIComponent(adminMsg);
         window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${adminEncoded}`, '_blank');
     }, 1500);
 
-    // 3️⃣ ✅ CORREO AUTOMÁTICO AL CLIENTE via EmailJS (si configuraste EmailJS)
-    if (email && typeof emailjs !== 'undefined') {
-        emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
-            to_email: email,
-            to_name: name,
-            order_number: numTicket,
-            order_items: itemLines,
-            order_total: `$${formatPrice(total)}`,
-            client_phone: phone,
-            client_address: addr,
-        }).catch(err => console.warn('EmailJS:', err));
+    // 3️⃣ ✅ CORREO AUTOMÁTICO "EN SILENCIO" AL CLIENTE
+    if (email) {
+        // Intentar con EmailJS si está configurado (envío silencioso real)
+        if (typeof emailjs !== 'undefined') {
+            emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
+                to_email: email,
+                to_name: name,
+                order_number: numTicket,
+                order_items: itemLines,
+                order_total: `$${formatPrice(total)}`,
+                client_phone: phone,
+                client_address: addr,
+                seller: seller || 'N/A',
+            }).catch(err => console.warn('EmailJS:', err));
+        } else {
+            // Respaldo: mailto en segundo plano (abre cliente de correo)
+            let body = `Estimado(a) ${name},\n\nResumen de su pedido (${numTicket}):\n\n`;
+            cart.forEach(i => {
+                let extras = '';
+                if (i.selectedColor) extras += ` | Color: ${i.selectedColor}`;
+                if (i.selectedSize) extras += ` | Talla: ${i.selectedSize}`;
+                body += `- ${i.name} (Ref: ${i.ref || 'N/A'}${extras}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
+            });
+            body += `\nTOTAL A PAGAR: $${formatPrice(total)}\n`;
+            if (seller) body += `Vendedor: ${seller}\n`;
+            body += `\nGracias por su compra. — BRILHO JOYAS`;
+            // Abrir en iframe oculto para que sea más silencioso
+            const mailLink = `mailto:${email}?subject=${encodeURIComponent('Factura de Pedido ' + numTicket + ' - BRILHO JOYAS')}&body=${encodeURIComponent(body)}`;
+            const mailFrame = document.createElement('iframe');
+            mailFrame.style.display = 'none';
+            mailFrame.src = mailLink;
+            document.body.appendChild(mailFrame);
+            setTimeout(() => document.body.removeChild(mailFrame), 3000);
+        }
     }
+
+    // 4️⃣ Generar ticket PDF automáticamente
+    const clientData = { name, idNum, phone, transport, addr, seller };
+    generateTicketPDF(clientData, 'auto');
 
     // Clear state
     cart = [];
@@ -1076,10 +1264,18 @@ function parsePrice(p) {
 
 // -------- TICKET PDF GENERATOR --------
 function generateTicketPDF(client = {}, action = 'download', emailAddress = '') {
-    const total = cart.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
+    // Use current cart for PDF - may be called after checkout clears cart, so we use a snapshot
+    const cartSnapshot = (action === 'auto') ? _lastCartSnapshot : cart;
+    if (!cartSnapshot || cartSnapshot.length === 0) return;
+    
+    const total = cartSnapshot.reduce((s, i) => s + (parsePrice(i.price) * i.quantity), 0);
     const now = new Date();
-    const fecha = now.toLocaleDateString() + ' ' + now.toLocaleTimeString(); // Fallback-safe date formatting
+    const fecha = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
     const numTicket = 'TKT-' + Date.now().toString().slice(-6);
+
+    const sellerRow = client.seller ? `
+                <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Vendedor:</strong></td><td style="padding: 4px 8px; color: #b8860b; font-weight: 600;">${client.seller}</td></tr>
+    ` : '';
 
     const clientRows = client.name ? `
         <div style="background: #fffbf0; border: 1px solid #d4af37; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
@@ -1090,19 +1286,27 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
                 <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Teléfono:</strong></td><td style="padding: 4px 8px;">${client.phone}</td></tr>
                 <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Agencia Envío:</strong></td><td style="padding: 4px 8px;">${client.transport}</td></tr>
                 <tr><td style="width: 140px; color: #555; padding: 4px 8px;"><strong>Dirección:</strong></td><td style="padding: 4px 8px;">${client.addr}</td></tr>
+                ${sellerRow}
             </table>
         </div>
     ` : '';
 
-    const rows = cart.map((i, index) => `
+    const rows = cartSnapshot.map((i, index) => {
+        let details = i.name;
+        let variantInfo = '';
+        if (i.selectedColor) variantInfo += `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${i.selectedColorHex||'#888'};margin-right:3px;vertical-align:middle;border:1px solid #ddd;"></span>${i.selectedColor}`;
+        if (i.selectedSize) variantInfo += `${i.selectedColor ? ' · ' : ''}Talla: ${i.selectedSize}`;
+        if (variantInfo) details += `<div style="font-size:0.75rem; color:#888; margin-top:2px;">${variantInfo}</div>`;
+        
+        return `
         <tr style="${index % 2 !== 0 ? 'background: #f9f9f9;' : ''}">
-            <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee;">${i.name}</td>
+            <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee;">${details}</td>
             <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:center">${i.ref || '-'}</td>
             <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:center">${i.quantity}</td>
             <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:right">$${formatPrice(parsePrice(i.price))}</td>
             <td style="padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid #eee; text-align:right">$${formatPrice(parsePrice(i.price) * i.quantity)}</td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 
     const ticketHTML = `
     <div style="font-family: 'Inter', sans-serif; background: #fff; color: #222; padding: 40px; max-width: 680px; margin: 0 auto; box-sizing: border-box;">
@@ -1138,14 +1342,20 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
 
     if (action === 'email') {
         let body = `Estimado(a) ${client.name || 'Cliente'},\n\nResumen de su pedido (${numTicket}):\n\n`;
-        cart.forEach(i => {
-            body += `- ${i.name} (Ref: ${i.ref || 'N/A'}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
+        cartSnapshot.forEach(i => {
+            let extras = '';
+            if (i.selectedColor) extras += ` | Color: ${i.selectedColor}`;
+            if (i.selectedSize) extras += ` | Talla: ${i.selectedSize}`;
+            body += `- ${i.name} (Ref: ${i.ref || 'N/A'}${extras}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
         });
-        body += `\nTOTAL A PAGAR: $${formatPrice(total)}\n\n`;
-        body += `Si desea adjuntar el documento en PDF, puede generarlo y guardarlo desde el diálogo de impresión que se abrió.\n\n`;
-        body += `Gracias por su compra.`;
-        window.location.href = `mailto:${emailAddress}?subject=${encodeURIComponent('Factura de Pedido - BRILHO JOYAS')}&body=${encodeURIComponent(body)}`;
+        body += `\nTOTAL A PAGAR: $${formatPrice(total)}\n`;
+        if (client.seller) body += `Vendedor: ${client.seller}\n`;
+        body += `\nGracias por su compra. — BRILHO JOYAS`;
+        window.location.href = `mailto:${emailAddress}?subject=${encodeURIComponent('Factura de Pedido ' + numTicket + ' - BRILHO JOYAS')}&body=${encodeURIComponent(body)}`;
     }
+
+    // For 'auto' action (after checkout), skip print dialog — just save silently in background
+    if (action === 'auto') return;
 
     // NATIVE PRINT DIALOG: the absolute most robust way to print or Save to PDF on all mobile and desktop devices
     const iframe = document.createElement('iframe');
@@ -1167,5 +1377,124 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
         iframe.contentWindow.print();
         setTimeout(() => document.body.removeChild(iframe), 2000);
     }, 500);
+}
+
+// -------- GESTIÓN DE COLORES, MEDIDAS Y VENDEDORES --------
+let _lastCartSnapshot = []; // snapshot for PDF generation after checkout
+
+function saveColors() { localStorage.setItem('brilho_colors', JSON.stringify(availableColors)); }
+function saveSizes() { localStorage.setItem('brilho_sizes', JSON.stringify(availableSizes)); }
+function saveSellers() { localStorage.setItem('brilho_sellers', JSON.stringify(availableSellers)); }
+
+window.addColor = function() {
+    const nameInput = document.getElementById('newColorName');
+    const hexInput = document.getElementById('newColorHex');
+    const name = nameInput.value.trim();
+    const hex = hexInput.value;
+    if (!name) { alert('Escribe un nombre para el color.'); return; }
+    if (availableColors.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+        alert('Ya existe un color con ese nombre.'); return;
+    }
+    availableColors.push({ name, hex });
+    saveColors();
+    nameInput.value = '';
+    renderManageLists();
+}
+
+window.removeColor = function(name) {
+    availableColors = availableColors.filter(c => c.name !== name);
+    saveColors();
+    renderManageLists();
+}
+
+window.addSize = function() {
+    const input = document.getElementById('newSizeName');
+    const val = input.value.trim();
+    if (!val) { alert('Escribe una medida.'); return; }
+    if (availableSizes.includes(val)) { alert('Esa medida ya existe.'); return; }
+    availableSizes.push(val);
+    saveSizes();
+    input.value = '';
+    renderManageLists();
+}
+
+window.removeSize = function(val) {
+    availableSizes = availableSizes.filter(s => s !== val);
+    saveSizes();
+    renderManageLists();
+}
+
+window.addSeller = function() {
+    const input = document.getElementById('newSellerName');
+    const val = input.value.trim();
+    if (!val) { alert('Escribe un nombre de vendedor.'); return; }
+    if (availableSellers.includes(val)) { alert('Ese vendedor ya existe.'); return; }
+    availableSellers.push(val);
+    saveSellers();
+    input.value = '';
+    renderManageLists();
+    populateSellerDropdown();
+}
+
+window.removeSeller = function(val) {
+    availableSellers = availableSellers.filter(s => s !== val);
+    saveSellers();
+    renderManageLists();
+    populateSellerDropdown();
+}
+
+function renderManageLists() {
+    // Colors
+    const colorsList = document.getElementById('colorsList');
+    if (colorsList) {
+        colorsList.innerHTML = availableColors.map(c => `
+            <div class="manage-tag">
+                <span class="tag-color-dot" style="background:${c.hex};"></span>
+                ${c.name}
+                <button class="tag-remove" onclick="removeColor('${c.name.replace(/'/g, "\\'")}')">✕</button>
+            </div>
+        `).join('') || '<span style="color:var(--gray-500);font-size:0.85rem;">No hay colores configurados</span>';
+    }
+    
+    // Sizes
+    const sizesList = document.getElementById('sizesList');
+    if (sizesList) {
+        sizesList.innerHTML = availableSizes.map(s => `
+            <div class="manage-tag">
+                💍 ${s}
+                <button class="tag-remove" onclick="removeSize('${s}')">✕</button>
+            </div>
+        `).join('') || '<span style="color:var(--gray-500);font-size:0.85rem;">No hay medidas configuradas</span>';
+    }
+    
+    // Sellers
+    const sellersList = document.getElementById('sellersList');
+    if (sellersList) {
+        sellersList.innerHTML = availableSellers.map(s => `
+            <div class="manage-tag">
+                👤 ${s}
+                <button class="tag-remove" onclick="removeSeller('${s.replace(/'/g, "\\'")}')">✕</button>
+            </div>
+        `).join('') || '<span style="color:var(--gray-500);font-size:0.85rem;">No hay vendedores configurados</span>';
+    }
+}
+
+function populateSellerDropdown() {
+    const select = document.getElementById('custSeller');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Seleccionar Vendedor --</option>' +
+        availableSellers.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+window.switchAdminTab = function(tabId, btn) {
+    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+}
+
+function initManagement() {
+    renderManageLists();
+    populateSellerDropdown();
 }
 

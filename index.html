@@ -164,6 +164,32 @@
     </div>
     <div id="cartOverlay" class="overlay"></div>
 
+    <!-- Variant Selection Modal (Color / Medida) -->
+    <div id="variantModal" class="variant-modal">
+        <div class="variant-modal-content">
+            <h3 id="vmProductName">Producto</h3>
+            <p class="vm-subtitle">Selecciona tus preferencias</p>
+            <div id="vmColorSection" class="variant-section">
+                <label>🎨 Color</label>
+                <div id="vmColorChips" class="color-chips">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+            <div id="vmSizeSection" class="variant-section">
+                <label>💍 Medida de Anillo</label>
+                <div id="vmSizeChips" class="size-chips">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+            <div class="vm-actions">
+                <button type="button" id="vmCancelBtn" class="btn btn-outline">Cancelar</button>
+                <button type="button" id="vmAddBtn" class="btn btn-primary">Añadir al Carrito</button>
+            </div>
+        </div>
+    </div>
+    <div id="overlayVariant" class="overlay-variant"></div>
+
+
     <!-- Checkout Modal -->
     <div id="checkoutModal" class="modal">
         <div class="modal-content glass">
@@ -189,6 +215,15 @@
                 <div class="form-group">
                     <label>Dirección de Entrega</label>
                     <textarea id="custAddr" required class="input-base resize-none" rows="3" placeholder="Detalla tu dirección aquí..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Vendedor</label>
+                    <div class="seller-select-wrap">
+                        <select id="custSeller" class="input-base" style="margin-bottom: 0;">
+                            <option value="">-- Seleccionar Vendedor --</option>
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Correo Electrónico (Para enviar ticket)</label>
@@ -294,6 +329,54 @@
                     </div>
                     <div id="adminProductGrid" class="admin-products-list">
                         <!-- Listed via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Management: Colores, Medidas, Vendedores -->
+            <div style="border-top: 2px solid var(--glass-border); padding: 0;">
+                <div class="admin-tabs" style="padding: 0 1.5rem;">
+                    <button class="admin-tab active" onclick="switchAdminTab('colorsTab', this)">🎨 Colores</button>
+                    <button class="admin-tab" onclick="switchAdminTab('sizesTab', this)">💍 Medidas</button>
+                    <button class="admin-tab" onclick="switchAdminTab('sellersTab', this)">👤 Vendedores</button>
+                </div>
+
+                <!-- Tab: Colores -->
+                <div id="colorsTab" class="admin-tab-content active admin-manage-section">
+                    <h3>🎨 Gestión de Colores</h3>
+                    <div class="manage-add-row">
+                        <div class="color-input-wrap" style="flex:1;">
+                            <input type="color" id="newColorHex" value="#d4af37">
+                            <input type="text" id="newColorName" placeholder="Nombre del color (Ej. Dorado)" class="input-base" style="margin-bottom:0;">
+                        </div>
+                        <button type="button" onclick="addColor()" class="btn btn-primary">+ Agregar</button>
+                    </div>
+                    <div id="colorsList" class="manage-items-list">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Tab: Medidas -->
+                <div id="sizesTab" class="admin-tab-content admin-manage-section">
+                    <h3>💍 Gestión de Medidas de Anillo</h3>
+                    <div class="manage-add-row">
+                        <input type="text" id="newSizeName" placeholder="Medida (Ej. 7, 8, 9...)" class="input-base" style="margin-bottom:0;">
+                        <button type="button" onclick="addSize()" class="btn btn-primary">+ Agregar</button>
+                    </div>
+                    <div id="sizesList" class="manage-items-list">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Tab: Vendedores -->
+                <div id="sellersTab" class="admin-tab-content admin-manage-section">
+                    <h3>👤 Gestión de Vendedores</h3>
+                    <div class="manage-add-row">
+                        <input type="text" id="newSellerName" placeholder="Nombre del vendedor" class="input-base" style="margin-bottom:0;">
+                        <button type="button" onclick="addSeller()" class="btn btn-primary">+ Agregar</button>
+                    </div>
+                    <div id="sellersList" class="manage-items-list">
+                        <!-- Injected by JS -->
                     </div>
                 </div>
             </div>
