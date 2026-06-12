@@ -480,8 +480,52 @@ h1, h2, h3, h4 {
   .hero-content { padding: 1.5rem; width: 95%; }
   .hero-content h1 { font-size: 2rem; }
   .hero-content p { font-size: 0.95rem; margin-bottom: 1.5rem; }
+  
+  /* Form & Admin */
   .admin-grid { grid-template-columns: 1fr; }
-  .admin-form-section { border-right: none; border-bottom: 1px solid var(--glass-border); }
+  .admin-form-section { border-right: none; border-bottom: 1px solid var(--glass-border); padding: 1rem; }
+  .admin-list-section { padding: 1rem; }
+  
+  /* Products & Grid - Tablet */
+  .product-grid { gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .product-img { height: 220px; }
+  .main-container { margin: 1.5rem auto; padding: 0 1rem; }
+  
+  /* Categories Bar */
+  .categories-container { padding: 0.8rem 1rem; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .categories-container::-webkit-scrollbar { display: none; }
+  
+  /* Cart Sidebar */
+  .cart-sidebar { max-width: 90vw; }
+}
+
+@media (max-width: 480px) {
+  /* Products & Grid - Mobile (2 columns usually) */
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; }
+  .product-img { height: 160px; }
+  .product-info { padding: 1rem; }
+  .product-title { font-size: 0.95rem; }
+  .product-desc { font-size: 0.75rem; margin-bottom: 0.5rem; }
+  .product-price { font-size: 1.1rem; }
+  .btn { padding: 0.5rem 1rem; font-size: 0.8rem; }
+  
+  /* Modals */
+  .modal-content { padding: 1.2rem; }
+  .variant-modal-content { padding: 1.2rem; }
+  
+  /* Cart Sidebar - Full Screen */
+  .cart-sidebar { max-width: 100vw; right: -100vw; }
+  .cart-item { flex-direction: column; align-items: flex-start; position: relative; }
+  .cart-item img { width: 100%; height: 120px; }
+  .qty-controls { width: 100%; justify-content: space-between; margin-top: 0.5rem; }
+  
+  /* Hero */
+  .hero { margin-top: 60px; min-height: 40vh; }
+  .hero-content h1 { font-size: 1.6rem; }
+  
+  /* Footer */
+  .footer { padding: 2rem 1rem 1rem; margin-top: 2rem; }
+  .footer-container { gap: 1.5rem; }
 }
 
 /* ==============================
