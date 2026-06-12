@@ -798,7 +798,7 @@ function handleOrderSubmit(e) {
     if (email) {
         // Intentar con EmailJS si está configurado (envío silencioso real)
         if (typeof emailjs !== 'undefined') {
-            emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
+            emailjs.send('service_ctejvgq', 'template_menwr41', {
                 to_email: email,
                 to_name: name,
                 order_number: numTicket,
