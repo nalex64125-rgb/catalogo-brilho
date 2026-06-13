@@ -797,17 +797,22 @@ function handleOrderSubmit(e) {
     // 3️⃣ ✅ CORREO AUTOMÁTICO "EN SILENCIO" AL CLIENTE
     if (email) {
         // Intentar con EmailJS si está configurado (envío silencioso real)
-        if (typeof emailjs !== 'undefined') {
-            emailjs.send('service_ctejvgq', 'template_menwr41', {
-                to_email: email,
-                to_name: name,
-                order_number: numTicket,
-                order_items: itemLines,
-                order_total: `$${formatPrice(total)}`,
-                client_phone: phone,
-                client_address: addr,
-                seller: seller || 'N/A',
-            }).catch(err => console.warn('EmailJS:', err));
+        if (typeof emailjs !== 'undefined' && typeof html2pdf !== 'undefined') {
+            const clientData = { name, idNum, phone, transport, addr, seller };
+            // Generar PDF en base64 y enviarlo adjunto
+            generateTicketPDF(clientData, 'get_base64').then(base64Pdf => {
+                emailjs.send('service_ctejvgq', 'template_menwr41', {
+                    to_email: email,
+                    to_name: name,
+                    order_number: numTicket,
+                    order_items: itemLines,
+                    order_total: `$${formatPrice(total)}`,
+                    client_phone: phone,
+                    client_address: addr,
+                    seller: seller || 'N/A',
+                    factura_pdf: base64Pdf
+                }).catch(err => console.warn('EmailJS:', err));
+            });
         } else {
             // Respaldo: mailto en segundo plano (abre cliente de correo)
             let body = `Estimado(a) ${name},\n\nResumen de su pedido (${numTicket}):\n\n`;
@@ -1369,6 +1374,25 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
             Gracias por elegir <strong>BRILHO JOYAS</strong> ✨
         </div>
     </div>`;
+
+    if (action === 'get_base64') {
+        const element = document.createElement('div');
+        element.innerHTML = ticketHTML;
+        element.style.position = 'absolute';
+        element.style.left = '-9999px';
+        document.body.appendChild(element);
+        
+        return html2pdf().set({
+            margin: [10, 10, 10, 10],
+            filename: `Factura_${numTicket}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(element).outputPdf('datauristring').then(base64 => {
+            document.body.removeChild(element);
+            return base64; // Retorna el string base64 del PDF
+        });
+    }
 
     if (action === 'email') {
         let body = `Estimado(a) ${client.name || 'Cliente'},\n\nResumen de su pedido (${numTicket}):\n\n`;
