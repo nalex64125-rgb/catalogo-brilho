@@ -811,6 +811,12 @@ function handleOrderSubmit(e) {
             if (seller) emailBody += `Vendedor: ${seller}\n`;
             emailBody += `\nGracias por su compra. — BRILHO JOYAS`;
 
+            // Mostramos un mensaje de cargando en el botón
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = "Procesando pedido...";
+            submitBtn.disabled = true;
+
             // Generar PDF en base64 y enviarlo al servidor
             generateTicketPDF(clientData, 'get_base64').then(base64Pdf => {
                 fetch(WEB_APP_URL, {
@@ -825,34 +831,25 @@ function handleOrderSubmit(e) {
                         fileName: `Factura_${numTicket}.pdf`
                     })
                 }).catch(err => console.warn('Error enviando correo:', err));
+            }).finally(() => {
+                // 4️⃣ Generar ticket PDF automáticamente (descarga local opcional - ahora desactivado)
+                // generateTicketPDF(clientData, 'auto');
+
+                // Clear state DESPUÉS de enviar el correo
+                cart = [];
+                localStorage.removeItem('brilho_cart');
+                updateCartUI();
+                els.checkoutForm.reset();
+                toggleModal(els.checkoutModal, els.modalOverlayCheckout, false);
+                
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
             });
-        } else {
-            // Respaldo: mailto en segundo plano (abre cliente de correo)
-            let body = `Estimado(a) ${name},\n\nResumen de su pedido (${numTicket}):\n\n`;
-            cart.forEach(i => {
-                let extras = '';
-                if (i.selectedColor) extras += ` | Color: ${i.selectedColor}`;
-                if (i.selectedSize) extras += ` | Talla: ${i.selectedSize}`;
-                body += `- ${i.name} (Ref: ${i.ref || 'N/A'}${extras}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
-            });
-            body += `\nTOTAL A PAGAR: $${formatPrice(total)}\n`;
-            if (seller) body += `Vendedor: ${seller}\n`;
-            body += `\nGracias por su compra. — BRILHO JOYAS`;
-            // Abrir en iframe oculto para que sea más silencioso
-            const mailLink = `mailto:${email}?subject=${encodeURIComponent('Factura de Pedido ' + numTicket + ' - BRILHO JOYAS')}&body=${encodeURIComponent(body)}`;
-            const mailFrame = document.createElement('iframe');
-            mailFrame.style.display = 'none';
-            mailFrame.src = mailLink;
-            document.body.appendChild(mailFrame);
-            setTimeout(() => document.body.removeChild(mailFrame), 3000);
+            return; // Detenemos la ejecución aquí porque el finally limpiará el carrito
         }
     }
 
-    // 4️⃣ Generar ticket PDF automáticamente
-    const clientData = { name, idNum, phone, transport, addr, seller };
-    generateTicketPDF(clientData, 'auto');
-
-    // Clear state
+    // Si no hay correo, limpiamos el carrito directamente
     cart = [];
     localStorage.removeItem('brilho_cart');
     updateCartUI();
@@ -1389,25 +1386,15 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
     </div>`;
 
     if (action === 'get_base64') {
-        const element = document.createElement('div');
-        element.innerHTML = ticketHTML;
-        element.style.position = 'fixed';
-        element.style.top = '0';
-        element.style.left = '0';
-        element.style.width = '800px';
-        element.style.zIndex = '-9999';
-        document.body.appendChild(element);
-        
+        // En lugar de renderizar en un contenedor oculto (que a veces da un PDF en blanco), 
+        // le pasamos el HTML directamente a la librería y configuramos el tamaño nativo.
         return html2pdf().set({
-            margin: [10, 10, 10, 10],
+            margin: 10,
             filename: `Factura_${numTicket}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
+            html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(element).outputPdf('datauristring').then(base64 => {
-            document.body.removeChild(element);
-            return base64; // Retorna el string base64 del PDF
-        });
+        }).from(ticketHTML, 'string').outputPdf('datauristring');
     }
 
     if (action === 'email') {
