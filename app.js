@@ -1387,10 +1387,10 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
 
     if (action === 'get_base64') {
         const container = document.createElement('div');
-        container.style.position = 'fixed';
+        container.style.position = 'absolute'; // Usamos absolute para que NO se corte con la altura de la pantalla (el viewport)
         container.style.top = '0';
         container.style.left = '0';
-        container.style.width = '800px';
+        container.style.width = '700px'; // Ajustamos a 700px para que encaje mejor en el A4
         container.style.zIndex = '-100'; // Detrás de la interfaz
         container.style.opacity = '0.01'; // Casi invisible pero el navegador lo renderiza con fuentes
         container.style.pointerEvents = 'none';
@@ -1403,8 +1403,8 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
         return html2pdf().set({
             margin: 10,
             filename: `Factura_${numTicket}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
+            image: { type: 'jpeg', quality: 1 },
+            html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, // quitamos windowWidth para que detecte el tamaño natural
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         }).from(element).outputPdf('datauristring').then(base64 => {
             document.body.removeChild(container);
