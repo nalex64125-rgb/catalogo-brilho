@@ -1386,15 +1386,30 @@ function generateTicketPDF(client = {}, action = 'download', emailAddress = '') 
     </div>`;
 
     if (action === 'get_base64') {
-        // En lugar de renderizar en un contenedor oculto (que a veces da un PDF en blanco), 
-        // le pasamos el HTML directamente a la librería y configuramos el tamaño nativo.
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.width = '800px';
+        container.style.zIndex = '-100'; // Detrás de la interfaz
+        container.style.opacity = '0.01'; // Casi invisible pero el navegador lo renderiza con fuentes
+        container.style.pointerEvents = 'none';
+
+        const element = document.createElement('div');
+        element.innerHTML = ticketHTML;
+        container.appendChild(element);
+        document.body.appendChild(container);
+
         return html2pdf().set({
             margin: 10,
             filename: `Factura_${numTicket}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(ticketHTML, 'string').outputPdf('datauristring');
+        }).from(element).outputPdf('datauristring').then(base64 => {
+            document.body.removeChild(container);
+            return base64;
+        });
     }
 
     if (action === 'email') {
