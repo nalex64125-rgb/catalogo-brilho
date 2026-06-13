@@ -403,6 +403,12 @@
     <div id="overlayImageZoom" class="overlay-modal" onclick="toggleImageZoom(false)" style="background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            emailjs.init("MlHu5XX4VxzZIKx1t");
+        })();
+    </script>
     <script>
         // Cache buster: always forces the browser to load the latest app.js
         const script = document.createElement('script');
