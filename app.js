@@ -796,22 +796,33 @@ function handleOrderSubmit(e) {
 
     // 3️⃣ ✅ CORREO AUTOMÁTICO "EN SILENCIO" AL CLIENTE
     if (email) {
-        // Intentar con EmailJS si está configurado (envío silencioso real)
-        if (typeof emailjs !== 'undefined' && typeof html2pdf !== 'undefined') {
+        if (typeof html2pdf !== 'undefined') {
             const clientData = { name, idNum, phone, transport, addr, seller };
-            // Generar PDF en base64 y enviarlo adjunto
+            // Generar PDF en base64 y enviarlo al servidor
             generateTicketPDF(clientData, 'get_base64').then(base64Pdf => {
-                emailjs.send('service_ctejvgq', 'template_menwr41', {
-                    to_email: email,
-                    to_name: name,
-                    order_number: numTicket,
-                    order_items: itemLines,
-                    order_total: `$${formatPrice(total)}`,
-                    client_phone: phone,
-                    client_address: addr,
-                    seller: seller || 'N/A',
-                    factura_pdf: base64Pdf
-                }).catch(err => console.warn('EmailJS:', err));
+                let body = `Estimado(a) ${name},\n\nResumen de su pedido (${numTicket}):\n\n`;
+                cart.forEach(i => {
+                    let extras = '';
+                    if (i.selectedColor) extras += ` | Color: ${i.selectedColor}`;
+                    if (i.selectedSize) extras += ` | Talla: ${i.selectedSize}`;
+                    body += `- ${i.name} (Ref: ${i.ref || 'N/A'}${extras}) x${i.quantity} = $${formatPrice(parsePrice(i.price) * i.quantity)}\n`;
+                });
+                body += `\nTOTAL A PAGAR: $${formatPrice(total)}\n`;
+                if (seller) body += `Vendedor: ${seller}\n`;
+                body += `\nGracias por su compra. — BRILHO JOYAS`;
+
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({
+                        action: 'SEND_EMAIL',
+                        email: email,
+                        subject: `Factura de Pedido ${numTicket} - BRILHO JOYAS`,
+                        body: body,
+                        pdfBase64: base64Pdf,
+                        fileName: `Factura_${numTicket}.pdf`
+                    })
+                }).catch(err => console.warn('Error enviando correo:', err));
             });
         } else {
             // Respaldo: mailto en segundo plano (abre cliente de correo)
