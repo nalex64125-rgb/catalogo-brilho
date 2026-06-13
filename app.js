@@ -886,12 +886,26 @@ window.openImageZoom = function(src) {
     // Actualizar contador
     document.getElementById('zoomLevelLabel').textContent = '100%';
 
-    // ── WHEEL ZOOM ──
+    // ── WHEEL ZOOM (centrado en el cursor) ──
     img.onwheel = (e) => {
         e.preventDefault();
-        const delta = e.deltaY < 0 ? 0.15 : -0.15;
-        _zoomScale = Math.min(5, Math.max(1, _zoomScale + delta));
-        if (_zoomScale === 1) { _zoomX = 0; _zoomY = 0; }
+        const prevScale = _zoomScale;
+        const delta = e.deltaY < 0 ? 0.18 : -0.18;
+        _zoomScale = Math.min(6, Math.max(1, _zoomScale + delta));
+
+        if (_zoomScale === 1) {
+            _zoomX = 0; _zoomY = 0;
+        } else {
+            // Zoom hacia la posición del cursor
+            const wrapper = document.querySelector('.zoom-image-wrapper');
+            const rect = wrapper ? wrapper.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+            const cx = e.clientX - (rect.left + rect.width / 2);
+            const cy = e.clientY - (rect.top + rect.height / 2);
+            const scaleRatio = _zoomScale / prevScale;
+            _zoomX = cx - (cx - _zoomX) * scaleRatio;
+            _zoomY = cy - (cy - _zoomY) * scaleRatio;
+        }
+
         _applyZoomTransform();
         document.getElementById('zoomLevelLabel').textContent = Math.round(_zoomScale * 100) + '%';
     };
@@ -919,12 +933,20 @@ window.openImageZoom = function(src) {
     window.addEventListener('mouseup', window._zoomMouseUp);
 
     // ── TOUCH PINCH ──
+    let _pinchCenter = { x: 0, y: 0 };
     img.ontouchstart = (e) => {
         if (e.touches.length === 2) {
             _pinchDist = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
+            // Centro del gesto pinch
+            const wrapper = document.querySelector('.zoom-image-wrapper');
+            const rect = wrapper ? wrapper.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+            _pinchCenter = {
+                x: ((e.touches[0].clientX + e.touches[1].clientX) / 2) - (rect.left + rect.width / 2),
+                y: ((e.touches[0].clientY + e.touches[1].clientY) / 2) - (rect.top + rect.height / 2)
+            };
         } else if (e.touches.length === 1 && _zoomScale > 1) {
             _isDragging = true;
             _dragStart = { x: e.touches[0].clientX - _zoomX, y: e.touches[0].clientY - _zoomY };
@@ -937,10 +959,18 @@ window.openImageZoom = function(src) {
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
+            const prevScale = _zoomScale;
             const ratio = newDist / _pinchDist;
-            _zoomScale = Math.min(5, Math.max(1, _zoomScale * ratio));
+            _zoomScale = Math.min(6, Math.max(1, _zoomScale * ratio));
             _pinchDist = newDist;
-            if (_zoomScale === 1) { _zoomX = 0; _zoomY = 0; }
+            if (_zoomScale === 1) {
+                _zoomX = 0; _zoomY = 0;
+            } else {
+                // Zoom centrado en el punto del pinch
+                const scaleRatio = _zoomScale / prevScale;
+                _zoomX = _pinchCenter.x - (_pinchCenter.x - _zoomX) * scaleRatio;
+                _zoomY = _pinchCenter.y - (_pinchCenter.y - _zoomY) * scaleRatio;
+            }
             _applyZoomTransform();
             document.getElementById('zoomLevelLabel').textContent = Math.round(_zoomScale * 100) + '%';
         } else if (e.touches.length === 1 && _isDragging) {
@@ -1019,9 +1049,9 @@ function handleLogin() {
     }
 }
 
-// IMAGE COMPRESSOR — Alta calidad para catálogo premium
-// Estrategia en 2 pasos: intenta 800px/0.82 → si es grande, baja a 600px/0.72
-function compressImage(file, maxDist = 800) {
+// IMAGE COMPRESSOR — Máxima calidad para zoom premium
+// Estrategia escalonada: 1600px/0.92 → 1200px/0.85 → 900px/0.75
+function compressImage(file, maxDist = 1600) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -1040,10 +1070,10 @@ function compressImage(file, maxDist = 800) {
                         if (height > size) { width = Math.round(width * size / height); height = size; }
                     }
 
+                    // Doble escala para máxima nitidez (supersampling)
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
-                    // Mejor interpolación para escalar
                     ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
                     ctx.drawImage(img, 0, 0, width, height);
@@ -1051,17 +1081,17 @@ function compressImage(file, maxDist = 800) {
                     return canvas.toDataURL('image/webp', quality);
                 };
 
-                // Intento 1: 800px a 0.82 de calidad (nítida para zoom)
-                let result = tryCompress(800, 0.82);
+                // Intento 1: 1600px a 0.92 de calidad — máxima nitidez para zoom
+                let result = tryCompress(1600, 0.92);
 
-                // Si supera el límite, reducir a 600px / 0.72
-                if (result.length > 45000) {
-                    result = tryCompress(600, 0.72);
+                // Si supera el límite, reducir a 1200px / 0.85
+                if (result.length > 150000) {
+                    result = tryCompress(1200, 0.85);
                 }
 
-                // Último recurso: 450px / 0.60
-                if (result.length > 45000) {
-                    result = tryCompress(450, 0.60);
+                // Último recurso: 900px / 0.75
+                if (result.length > 150000) {
+                    result = tryCompress(900, 0.75);
                 }
 
                 resolve(result);
@@ -1086,9 +1116,9 @@ async function handleAddProduct(e) {
     els.adminStatus.innerText = "⏳ Optimizando imagen...";
 
     try {
-        const compressedBase64 = await compressImage(file, 800); // 800px para alta calidad
+        const compressedBase64 = await compressImage(file, 1600); // 1600px para máxima calidad en zoom
         
-        if (compressedBase64.length > 45000) {
+        if (compressedBase64.length > 150000) {
             els.adminStatus.innerText = "❌ La imagen es muy compleja/grande. Usa otra foto.";
             els.saveProductBtn.disabled = false;
             return;

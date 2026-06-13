@@ -717,12 +717,14 @@ h1, h2, h3, h4 {
   cursor: zoom-in;
   transform-origin: center center;
   will-change: transform;
-  transition: transform 0.08s ease-out;
+  transition: transform 0.06s linear;
   user-select: none;
   -webkit-user-select: none;
-  /* Máxima calidad de renderizado */
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: high-quality;
+  /* Máxima calidad de renderizado al hacer zoom */
+  image-rendering: auto;               /* Interpolación bicúbica de alta calidad */
+  -webkit-optimize-contrast: auto;     /* Safari: suavizado fino */
+  backface-visibility: hidden;         /* Elimina artefactos de anti-aliasing */
+  -webkit-backface-visibility: hidden;
 }
 
 /* Texto de ayuda en la parte inferior */
