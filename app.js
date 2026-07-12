@@ -88,6 +88,7 @@ function initApp() {
     initEvents();
     initManagement();
     loadProducts();
+    loadSellers();
     // Auto-refresh products every 45s
     setInterval(loadProducts, 45000);
 }
@@ -340,6 +341,23 @@ async function loadProducts() {
         if (products.length === 0) {
             els.productGrid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:4rem;">Error conectando a la base de datos. Verifica tu conexión.</div>`;
         }
+    }
+}
+
+async function loadSellers() {
+    try {
+        const response = await fetch(WEB_APP_URL + '?action=get_sellers&t=' + new Date().getTime(), { cache: "no-store" });
+        const data = await response.json();
+        if (data && Array.isArray(data.sellers)) {
+            availableSellers = data.sellers;
+            localStorage.setItem('brilho_sellers', JSON.stringify(availableSellers));
+            populateSellerDropdown();
+            if (els.adminPanel && els.adminPanel.classList.contains('open')) {
+                renderManageLists();
+            }
+        }
+    } catch (e) {
+        console.warn("No se pudieron cargar los vendedores del servidor, usando locales.", e);
     }
 }
 
@@ -1456,7 +1474,17 @@ let _lastCartSnapshot = []; // snapshot for PDF generation after checkout
 
 function saveColors() { localStorage.setItem('brilho_colors', JSON.stringify(availableColors)); }
 function saveSizes() { localStorage.setItem('brilho_sizes', JSON.stringify(availableSizes)); }
-function saveSellers() { localStorage.setItem('brilho_sellers', JSON.stringify(availableSellers)); }
+function saveSellers() {
+    localStorage.setItem('brilho_sellers', JSON.stringify(availableSellers));
+    fetch(WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+            action: 'SAVE_SELLERS',
+            sellers: availableSellers
+        })
+    }).catch(err => console.warn('Error sincronizando vendedores:', err));
+}
 
 window.addColor = function() {
     const nameInput = document.getElementById('newColorName');
