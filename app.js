@@ -1,6 +1,6 @@
 // -------- CONFIGURATION --------
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzEOc60qnM5ehbXsQb1UfCmQj_irzNiHF4I-gr7vDYwo5QwHpGQj7bHzNmk5o0mTJrW/exec";
-let ADMIN_PASS = localStorage.getItem('brilho_admin_pass') || "1234";
+let ADMIN_PASS = localStorage.getItem('brilho_admin_pass') || "A94377155";
 const BUSINESS_PHONE = "584149262763"; // format without + or dashes for wa.me
 const ADMIN_WHATSAPP = "584149262763"; // Tu WhatsApp de administrador (sin + ni espacios)
 
